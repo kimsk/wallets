@@ -33,6 +33,7 @@ puzzle_prog_template = load_clvm("make_p2_delegated_puzzle_or_hidden_puzzle.clvm
 
 def run(program, args):
     sexp = binutils.assemble(program)
+    args = sexp.to(args)
     cost, r = run_program(sexp, args)
     return r.as_python()
 
