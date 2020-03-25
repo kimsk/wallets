@@ -31,24 +31,11 @@ def ap_make_puzzle(a_pubkey_serialized, b_pubkey_serialized):
     # Mode one is for spending to one of the approved destinations
     # Solution contains (option 1 flag, new puzzle, new solution, my_primary_input, wallet_puzzle_hash)
 
-    aggsig_entire_solution = f"(c (q 0x{ConditionOpcode.AGG_SIG.hex()}) (c (q {b_pubkey}) (c (sha256tree (a)) (q ()))))"
-    create_outputs = f"((c (f (r (a))) (f (r (r (a))))))"
-    aggsig_outputs = f"((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q ((c (i (= (f (f (f (r (a))))) (q 0x{ConditionOpcode.CREATE_COIN.hex()})) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (c (c (q 0x{ConditionOpcode.AGG_SIG.hex()}) (c (q {a_pubkey}) (c (f (r (f (f (r (a)))))) (q ())))) (f (r (r (a))))) (q ()))))))) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (f (r (r (a)))) (q ())))))))) (a)))) (q (f (r (r (a)))))) (a)))) (c {create_outputs} (c {create_outputs} (q ()))))))"
-    sum_outputs = f"((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q ((c (i (= (f (f (f (r (a))))) (q 0x{ConditionOpcode.CREATE_COIN.hex()})) (q (+ (f (r (r (f (f (r (a))))))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (+ (q ()) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ())))))))) (a)))) (q (q ()))) (a)))) (c {create_outputs} (q ())))))"
-    mode_one_me_string = f"(c (q 0x{ConditionOpcode.ASSERT_MY_COIN_ID.hex()}) (c (sha256 (f (r (r (r (a))))) (f (r (r (r (r (a)))))) {sum_outputs}) (q ())))"
-    mode_one = f"(c {aggsig_entire_solution} (c {mode_one_me_string} {aggsig_outputs}))"
-    #mode_one = merge_two_lists(create_outputs, mode_one)
+    # Below is the result of compiling ap_wallet.clvm
+    compiled_script = f'((c (q ((c (i (f (r (a))) (q ((c (f (a)) (c (f (a)) (c ((c (f (r (r (a)))) (f (r (r (r (a))))))) (c (q ()) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (r (r (a))))))) (q (())))))))))) (q (c (c (q 53) (c (sha256 (f (r (r (r (r (r (r (a)))))))) (f (r (r (a)))) (f (r (r (r (r (r (r (r (a)))))))))) (q ()))) (c (c (q 51) (c (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (sha256 (f (r (r (r (a))))) (f (r (r (r (r (a)))))) (f (r (r (r (r (r (a)))))))) (q ()))) (q ((q ()))))) (q ())))) (q (())))) (c (c (q 51) (c (f (r (r (a)))) (c (+ (f (r (r (r (r (r (a))))))) (f (r (r (r (r (r (r (r (a)))))))))) (q ())))) (q ())))))) (a)))) (c (q ((c (i (l (f (r (a)))) (q ((c (i (= (f (f (f (r (a))))) (q 51)) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (c (f (f (r (a)))) (c (c (q 50) (c (q {a_pubkey}) (c (f (r (f (f (r (a)))))) (q ())))) (f (r (r (a)))))) (c (f (r (r (r (a))))) (c (f (r (r (r (r (a)))))) (c (+ (f (r (r (f (f (r (a))))))) (f (r (r (r (r (r (a)))))))) (q ())))))))))) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (c (f (f (r (a)))) (f (r (r (a))))) (c (f (r (r (r (a))))) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (r (r (a))))))) (q ()))))))))))) (a)))) (q (c (c (q 53) (c (sha256 (f (r (r (r (a))))) (f (r (r (r (r (a)))))) (f (r (r (r (r (r (a)))))))) (q ()))) (f (r (r (a))))))) (a)))) (a))))'
+    # It is slightly more optimal to add aggsig solution by hand
+    puz = f"(c (c (q 50) (c (q {b_pubkey}) (c (sha256tree (a)) (q ())))) {compiled_script})"
 
-    # Mode two is for aggregating in another coin and expanding our single coin wallet
-    # Solution contains (option 2 flag, wallet_puzzle_hash, consolidating_coin_primary_input, consolidating_coin_puzzle_hash, consolidating_coin_amount, my_primary_input, my_amount)
-    create_consolidated = f"(c (q 0x{ConditionOpcode.CREATE_COIN.hex()}) (c (f (r (a))) (c (+ (f (r (r (r (r (a)))))) (f (r (r (r (r (r (r (a))))))))) (q ()))))"
-    mode_two_me_string = f"(c (q 0x{ConditionOpcode.ASSERT_MY_COIN_ID.hex()}) (c (sha256 (f (r (r (r (r (r (a))))))) (f (r (a))) (f (r (r (r (r (r (r (a))))))))) (q ())))"
-    create_lock = f"(c (q 0x{ConditionOpcode.CREATE_COIN.hex()}) (c (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (sha256 (f (r (r (a)))) (f (r (r (r (a))))) (f (r (r (r (r (a))))))) (q ()))) (c (q (q ())) (q ())))) (q ())))) (c (q 0) (q ()))))"
-
-    mode_two = f"(c {mode_two_me_string} (c {aggsig_entire_solution} \
-         (c {create_lock} (c {create_consolidated} (q ())))))"
-
-    puz = f"((c (i (= (f (a)) (q 1)) (q {mode_one}) (q {mode_two})) (a)))"
     return Program(binutils.assemble(puz))
 
 

@@ -112,7 +112,7 @@ class APWallet(Wallet):
         sol = "(1 (a) ("
         for puzhash, amount in outputs:
             sol += f"(0x{ConditionOpcode.CREATE_COIN.hex()} 0x{puzhash.hex()} {amount})"
-        sol += f") 0x{my_primary_input.hex()} 0x{my_puzzle_hash.hex()})"
+        sol += f") 0x{my_primary_input.hex()} 0x{my_puzzle_hash.hex()} () ())"
         return Program(binutils.assemble(sol))
 
     def ac_make_aggregation_solution(self, myid, wallet_coin_primary_input, wallet_coin_amount):
@@ -120,7 +120,7 @@ class APWallet(Wallet):
         return Program(binutils.assemble(sol))
 
     def ap_make_solution_mode_2(self, wallet_puzzle_hash, consolidating_primary_input, consolidating_coin_puzzle_hash, outgoing_amount, my_primary_input, incoming_amount):
-        sol = f"(2 0x{wallet_puzzle_hash.hex()} 0x{consolidating_primary_input.hex()} 0x{consolidating_coin_puzzle_hash.hex()} {outgoing_amount} 0x{my_primary_input.hex()} {incoming_amount})"
+        sol = f"(() 0x{wallet_puzzle_hash.hex()} 0x{consolidating_primary_input.hex()} 0x{consolidating_coin_puzzle_hash.hex()} {outgoing_amount} 0x{my_primary_input.hex()} {incoming_amount})"
         return Program(binutils.assemble(sol))
 
     # this is for sending a recieved ap coin, not creating a new ap coin
@@ -174,7 +174,6 @@ class APWallet(Wallet):
         change = self.current_balance - spend_value
         puzzlehash_amount_list.append((self.AP_puzzlehash, change))
         signatures_from_a.append(self.approved_change_signature)
-        #breakpoint()
         transaction = self.ap_generate_unsigned_transaction(
             puzzlehash_amount_list)
         self.temp_coin = Coin(self.temp_coin, self.temp_coin.puzzle_hash,

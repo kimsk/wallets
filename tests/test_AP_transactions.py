@@ -94,7 +94,7 @@ def test_AP_spend():
     assert wallet_b.current_balance == 5000
     assert len(wallet_b.my_utxos) == 1
 
-    # Wallet A sends more money into Wallet B using the aggregation coin
+    # Wallet A and wallet D both send extra money into Wallet B using the aggregation coin
     aggregation_puzzlehash = ap_wallet_a_functions.ap_get_aggregation_puzzlehash(
         APpuzzlehash)
     # amount = 80
