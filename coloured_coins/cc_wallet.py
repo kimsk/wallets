@@ -228,14 +228,14 @@ class CCWallet(Wallet):
         assert_my_parent_follows_core_logic = f"(c (q 0x{ConditionOpcode.ASSERT_MY_COIN_ID.hex()}) (c (sha256 (sha256 (f (f (r (a)))) (sha256tree {create_fullpuz_for_parent_innerpuzhash}) (f (r (r (f (r (a))))))) (sha256tree {create_fullpuz_for_my_innerpuz_reveal}) (f (r (r (a))))) (q ())))"
 
         # Ensure the auditor is following the coloured coin rules
-        add_core_to_auditor_innerpuzhash = f"(c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (f (r (r (r (r (r (a))))))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (a)) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))"
+        create_fullpuz_for_auditor_innerpuzhash = f"(c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (f (r (r (r (r (r (a))))))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (a)) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))"
 
         # The auditee must recreate the puzzle of the auditor's lock (A) to communicate with the auditor
         create_a_puz_for_cn = f"(c (q #r) (c (c (q #c) (c (c (q #q) (c (sha256 (sha256 (f (f (r (a)))) (sha256tree {create_fullpuz_for_parent_innerpuzhash}) (f (r (r (f (r (a))))))) (sha256tree {create_fullpuz_for_my_innerpuz_reveal}) (f (r (r (a))))) (q ()))) (q ((q ()))))) (q ())))"
-        consume_a = f"(c (q 52) (c (sha256 (sha256 (f (f (r (r (r (r (r (a)))))))) (sha256tree {add_core_to_auditor_innerpuzhash}) (f (r (r (f (r (r (r (r (r (a))))))))))) (sha256tree {create_a_puz_for_cn}) (q 0)) (q ())))"
+        consume_a = f"(c (q 52) (c (sha256 (sha256 (f (f (r (r (r (r (r (a)))))))) (sha256tree {create_fullpuz_for_auditor_innerpuzhash}) (f (r (r (f (r (r (r (r (r (a))))))))))) (sha256tree {create_a_puz_for_cn}) (q 0)) (q ())))"
 
         # The auditee must create their own lock (E) that the auditor can communicate with - this includes correct info about the actual output of the coin
-        create_e_puz = f"(c (q #r) (c (c (q #r) (c (c (q #c) (c (c (q #q) (c (sha256 (f (f (r (r (r (r (r (a)))))))) (sha256tree {add_core_to_auditor_innerpuzhash}) (f (r (r (f (r (r (r (r (r (a))))))))))) (q ()))) (c (c (q #c) (c (c (q #q) (c {sum_outputs} (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ())))"
+        create_e_puz = f"(c (q #r) (c (c (q #r) (c (c (q #c) (c (c (q #q) (c (sha256 (f (f (r (r (r (r (r (a)))))))) (sha256tree {create_fullpuz_for_auditor_innerpuzhash}) (f (r (r (f (r (r (r (r (r (a))))))))))) (q ()))) (c (c (q #c) (c (c (q #q) (c {sum_outputs} (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ())))"
         create_e = f"(c (q 51) (c (sha256tree {create_e_puz}) (c (q 0) (q ()))))"
 
         # The auditor must make sure that it consumes the generated E locks and creates all the A locks for each coin in the solution aggees list
