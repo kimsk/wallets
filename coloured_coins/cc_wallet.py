@@ -68,7 +68,7 @@ class CCWallet(Wallet):
     # inspect puzzle and check it is a CC puzzle
     def check_is_cc_puzzle(self, puzzle):
         puzstring = binutils.disassemble(puzzle)
-        if len(puzstring) < 5300:
+        if len(puzstring) < 4500:
             return False
         innerpuz = puzstring[11:75]
         if all(c in string.hexdigits for c in innerpuz) is not True:
@@ -84,10 +84,10 @@ class CCWallet(Wallet):
     # functions to get info from inside a puzzles
     # all constants are grouped here - these will change if core changes
     def get_genesis_from_puzzle(self, puzzle):
-        return puzzle[-596:].split(')')[0]
+        return puzzle[-251:].split(')')[0]
 
     def get_genesis_from_core(self, core):
-        return core[-589:].split(')')[0]
+        return core[-243:].split(')')[0]
 
     def get_innerpuzzle_from_puzzle(self, puzzle):
         return puzzle[9:75]
@@ -184,13 +184,6 @@ class CCWallet(Wallet):
         self.eve_coloured_coins[Coin(coin, coin.puzzle_hash, 0)] = (innerpuz, core)
         return spend_bundle
 
-    # we use it to merge the outputs of two programs that create lists
-    def merge_two_lists(self, list1=None, list2=None):
-        if (list1 is None) or (list2 is None):
-            return None
-        ret = f"((c (q ((c (f (a)) (a)))) (c (q ((c (i ((c (i (f (r (a))) (q (q ())) (q (q 1))) (a))) (q (f (c (f (r (r (a)))) (q ())))) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (c (f (f (r (a)))) (f (r (r (a))))) (q ())))))))) (a)))) (c {list1} (c {list2} (q ()))))))"
-        return ret
-
     # This is for spending an existing coloured coin
     def cc_make_puzzle(self, innerpuzhash, core):
         key = f"{innerpuzhash}{core}"
@@ -210,59 +203,14 @@ class CCWallet(Wallet):
         # auditor is (primary_input, innerpuzzlehash, amount)
         # aggees is left blank if you aren't the auditor otherwise it is a list of (primary_input, innerpuzhash, coin_amount, output_amount) for every coin in the spend
 
-        # run innerpuzreveal with innersol
-        create_outputs = f"((c (f (r (r (r (a))))) (f (r (r (r (r (a))))))))"
-        # Loop through output of create_outputs and adds up the amounts of the create_coins
-        sum_outputs = f"((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q ((c (i (= (f (f (f (r (a))))) (q 0x{ConditionOpcode.CREATE_COIN.hex()})) (q (+ (f (r (r (f (f (r (a))))))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (+ (q ()) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ())))))))) (a)))) (q (q ()))) (a)))) (c {create_outputs} (q ())))))"
+        # Compiled from coloured_coins.clvm normal_case
+        normal_case = "((c (q ((c (f (r (f (a)))) (c (f (a)) (c ((c (f (r (r (r (r (a)))))) (f (r (r (r (r (r (a))))))))) (c (q ()) (c (f (r (a))) (c (q ()) (c (sha256 (sha256 (f (f (r (r (a))))) (sha256tree ((c (r (r (f (f (a))))) (c (f (a)) (c (f (r (f (r (r (a)))))) (c (f (r (a))) (q ()))))))) (f (r (r (f (r (r (a)))))))) (sha256tree ((c (r (r (f (f (a))))) (c (f (a)) (c (sha256tree (f (r (r (r (r (a))))))) (c (f (r (a))) (q ()))))))) (f (r (r (r (a)))))) (c (sha256 (f (f (r (r (r (r (r (r (a))))))))) (sha256tree ((c (r (r (f (f (a))))) (c (f (a)) (c (f (r (f (r (r (r (r (r (r (a)))))))))) (c (f (r (a))) (q ()))))))) (f (r (r (f (r (r (r (r (r (r (a)))))))))))) (c (f (r (r (r (r (r (r (r (a))))))))) (q ())))))))))))) (c (q ((((c (i (l (f (r (a)))) (q ((c (f (f (f (a)))) (c (f (a)) (c (r (f (r (a)))) (c (f (r (r (a)))) (c (f (r (r (r (a))))) (c ((c (f (r (f (f (a))))) (c (f (a)) (c (sha256 (f (f (f (r (a))))) (sha256tree ((c (r (r (f (f (a))))) (c (f (a)) (c (f (r (f (f (r (a)))))) (c (f (r (r (r (a))))) (q ()))))))) (f (r (r (f (f (r (a)))))))) (c (f (r (r (a)))) (c (f (r (r (r (f (f (r (a)))))))) (c (f (r (r (r (r (a)))))) (q ())))))))) (c (+ (f (r (r (f (f (r (a))))))) (f (r (r (r (r (r (a)))))))) (c (+ (f (r (r (r (f (f (r (a)))))))) (f (r (r (r (r (r (r (a))))))))) (q ()))))))))))) (q ((c (i (= (f (r (r (r (r (r (a))))))) (f (r (r (r (r (r (r (a))))))))) (q (f (r (r (r (r (a))))))) (q (x))) (a))))) (a))) (c (c (q 52) (c (sha256 (f (r (a))) (sha256tree (c (q 7) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (a)))) (q ()))) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (a))))) (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ())))) (q ())) (q ()))) (c (c (q 51) (c (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (a))) (q ()))) (q ((q ()))))) (q ())))) (q (())))) (f (r (r (r (r (a)))))))) 5 (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (a))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (r (r (a)))) (q ()))) (q ((a))))) (q ())) (q ())))) (q ()))) ((c (f (r (r (f (a))))) (c (f (a)) (c (f (r (r (r (a))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (r (a))))))))) (c ((c (r (r (r (f (a))))) (c (f (a)) (c (f (r (a))) (c (f (r (r (a)))) (c (f (r (r (r (a))))) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ())))))))))) (q ())))))))) ((c (i (f (r (r (r (a))))) (q ((c (f (f (f (a)))) (c (f (a)) (c (f (r (r (r (a))))) (c (f (r (r (a)))) (c (f (r (a))) (c (f (r (r (r (r (a)))))) (q (() ())))))))))) (q (f (r (r (r (r (a)))))))) (a))) (c (i (f (r (a))) (q ((c (i (= (f (f (f (r (a))))) (q 51)) (q ((c (r (r (r (f (a))))) (c (f (a)) (c (r (f (r (a)))) (c (c (c (q 51) (c (sha256tree ((c (r (r (f (f (a))))) (c (f (a)) (c (f (r (f (f (r (a)))))) (c (f (r (r (r (a))))) (q ()))))))) (c (f (r (r (f (f (r (a))))))) (q ())))) (f (r (r (a))))) (c (f (r (r (r (a))))) (c (+ (f (r (r (f (f (r (a))))))) (f (r (r (r (r (a))))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ()))))))))))) (q ((c (r (r (r (f (a))))) (c (f (a)) (c (r (f (r (a)))) (c (c (f (f (r (a)))) (f (r (r (a))))) (c (f (r (r (r (a))))) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ())))))))))))) (a)))) (q (c (c (q 53) (c (f (r (r (r (r (r (a))))))) (q ()))) (c (c (q 52) (c (sha256 (f (r (r (r (r (r (r (a)))))))) (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (r (a))))))) (q ()))) (q ((q ()))))) (q ())))) (q ())) (q ()))) (c (c (q 51) (c (sha256tree (c (q 7) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (r (r (a)))))))) (q ()))) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (a)))))) (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ())))) (q (())))) (f (r (r (a))))))))) (a)))) (a))))"
 
-        # Loop through created outputs and if it's a CREATE_COIN then replace the new puzhashes with a coloured_coin puzhash which uses the generated puzhash as the innerpuzhash
-        replace_generated_createcoins = f"((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q ((c (i (= (f (f (f (r (a))))) (q 0x{ConditionOpcode.CREATE_COIN.hex()})) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (f (r (r (a)))) (c (c (c (q 0x{ConditionOpcode.CREATE_COIN.hex()}) (c (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (f (f (r (a)))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (r (r (a)))) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))) (c (f (r (r (f (f (r (a))))))) (q ())))) (f (r (r (r (a)))))) (q ())))))))) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (f (r (r (a)))) (c (c (f (f (r (a)))) (f (r (r (r (a)))))) (q ())))))))) ) (a))) ) (q (f (r (r (r (a)))))) ) (a)))) (c {create_outputs} (c (f (a)) (c (q ()) (q ())))))))"
-
-        # create full puzzles given the core and the innerpuz info
-        create_fullpuz_for_parent_innerpuzhash = "(c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (f (r (a))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (a)) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))"
-        create_fullpuz_for_my_innerpuz_reveal = "(c (q 7) (c (c (q 5) (c (c (q 1) (c (sha256tree (f (r (r (r (a)))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (a)) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))"
-
-        # Our parent is either the genesis coin or it should follow the same puzzle pattern as myself
-        # Also assert that the info given about ourselves is correct at the same time, such as innerpuzreveal
-        assert_my_parent_is_origin = f"(c (q 0x{ConditionOpcode.ASSERT_MY_COIN_ID.hex()}) (c (sha256 (f (r (a))) (sha256tree {create_fullpuz_for_my_innerpuz_reveal}) (f (r (r (a))))) (q ())))"
-        assert_my_parent_follows_core_logic = f"(c (q 0x{ConditionOpcode.ASSERT_MY_COIN_ID.hex()}) (c (sha256 (sha256 (f (f (r (a)))) (sha256tree {create_fullpuz_for_parent_innerpuzhash}) (f (r (r (f (r (a))))))) (sha256tree {create_fullpuz_for_my_innerpuz_reveal}) (f (r (r (a))))) (q ())))"
-
-        # Ensure the auditor is following the coloured coin rules
-        create_fullpuz_for_auditor_innerpuzhash = f"(c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (f (r (r (r (r (r (a))))))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (a)) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))"
-
-        # The auditee must recreate the puzzle of the auditor's lock (A) to communicate with the auditor
-        create_a_puz_for_cn = f"(c (q #r) (c (c (q #c) (c (c (q #q) (c (sha256 (sha256 (f (f (r (a)))) (sha256tree {create_fullpuz_for_parent_innerpuzhash}) (f (r (r (f (r (a))))))) (sha256tree {create_fullpuz_for_my_innerpuz_reveal}) (f (r (r (a))))) (q ()))) (q ((q ()))))) (q ())))"
-        consume_a = f"(c (q 52) (c (sha256 (sha256 (f (f (r (r (r (r (r (a)))))))) (sha256tree {create_fullpuz_for_auditor_innerpuzhash}) (f (r (r (f (r (r (r (r (r (a))))))))))) (sha256tree {create_a_puz_for_cn}) (q 0)) (q ())))"
-
-        # The auditee must create their own lock (E) that the auditor can communicate with - this includes correct info about the actual output of the coin
-        create_e_puz = f"(c (q #r) (c (c (q #r) (c (c (q #c) (c (c (q #q) (c (sha256 (f (f (r (r (r (r (r (a)))))))) (sha256tree {create_fullpuz_for_auditor_innerpuzhash}) (f (r (r (f (r (r (r (r (r (a))))))))))) (q ()))) (c (c (q #c) (c (c (q #q) (c {sum_outputs} (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ())))"
-        create_e = f"(c (q 51) (c (sha256tree {create_e_puz}) (c (q 0) (q ()))))"
-
-        # The auditor must make sure that it consumes the generated E locks and creates all the A locks for each coin in the solution aggees list
-        consume_es_generate_as = f"((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (f (r (r (a)))) (c (f (r (r (r (a))))) (c (c (c (q 51) (c (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (sha256 (f (f (f (r (a))))) (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (f (f (r (a)))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (r (r (r (a))))) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))) (f (r (r (f (f (r (a)))))))) (q ()))) (q ((q ()))))) (q ())))) (q (0)))) (c (c (q 52) (c (sha256 (sha256 (f (f (f (r (a))))) (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (f (f (r (a)))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (r (r (r (a))))) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))) (f (r (r (f (f (r (a)))))))) (sha256tree (c (q 7) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (a)))) (q ()))) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (f (f (r (a)))))))) (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ())))) (q 0)) (q ()))) (f (r (r (r (r (a)))))))) (q ()))))))))) (q (f (r (r (r (r (a)))))))) (a))))(c (f (r (r (r (r (r (r (a)))))))) (c (sha256 (sha256 (f (f (r (a)))) (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (f (r (a))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (a)) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))) (f (r (r (f (r (a))))))) (sha256tree (c (q 7) (c (c (q 5) (c (c (q 1) (c (sha256tree (f (r (r (r (a)))))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (a)) (q ()))) (q ((a))))) (q ())) (q ())))) (q ())))) (f (r (r (a))))) (c (f (a)) (q (()))))))))"
-
-        # The auditor must also make sure that the sum of outputs by the Es (given in aggees list) is equal to the actual total value of coins
-        # Loops through aggees list and keeps two running totals. At the end of the list compares the two totals
-        compare_sums = f"((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (c (+ (f (r (r (f (f (r (a))))))) (f (r (r (a))))) (c (+ (f (r (r (r (f (f (r (a)))))))) (f (r (r (r (a)))))) (q ())))))))) (q (= (f (r (r (a)))) (f (r (r (r (a)))))))) (a)))) (c (f (r (r (r (r (r (r (a)))))))) (q (() ()))))))"
-
-        # If aggees is () return (), otherwise we must be the auditor and we should compare_sums and if they're equal then return consume_es_generate_as
-        auditor_code_path = f"((c (i (f (r (r (r (r (r (r (a)))))))) (q ((c (i {compare_sums} (q {consume_es_generate_as}) (q (x))) (a)))) (q (q ()))) (a)))"
-
-        # This is the functionality inside the core that all coins follow whether they are auditor or not
-        normal_case = f"(c {consume_a} (c {create_e} (c {assert_my_parent_follows_core_logic} {self.merge_two_lists(replace_generated_createcoins, auditor_code_path)})))"
-
-        # If your parent is the genesis coin, the puzzle will make sure that your spend just creates a coin with your puzzle
-        # This is so all the logic above which uses parent_coin_info as a list doesn't break
-        create_child_with_my_puzzle = f"(c (q 51) (c (sha256tree {create_fullpuz_for_my_innerpuz_reveal}) (c (f (r (r (a)))) (q ()))))"
-
-        # If you have parent_info as an atom, but that atom is not the genesisID then go ahead with the eve spend. but enforce that my value is 0
-        assert_my_value_zero = f"(c (q 53) (c (sha256 (f (r (a))) (sha256tree {create_fullpuz_for_my_innerpuz_reveal}) (q 0)) (q ())))"
-        # If my parent_info is an atom then check if that atom is the origin ID
-        # having the originID stored here is what makes the coloured coin unique
-        eve_case = f"(c {create_child_with_my_puzzle} ((c (i (= (q 0x{originID}) (f (r (a)))) (q (c {assert_my_parent_is_origin} (q ()))) (q (c {assert_my_value_zero} (q ())))) (a))))"
-
+        # Compiled from coloured_coins.clvm eve_case
+        eve_case = f"((c (q (c (c (q 51) (c (sha256tree ((c (f (f (a))) (c (f (a)) (c (sha256tree (f (r (r (r (r (a))))))) (c (f (r (a))) (q ()))))))) (c (f (r (r (r (a))))) (q ())))) (c ((c (r (f (a))) (c (f (a)) (c (f (r (r (a)))) (c (sha256tree ((c (f (f (a))) (c (f (a)) (c (sha256tree (f (r (r (r (r (a))))))) (c (f (r (a))) (q ()))))))) (c (f (r (r (r (a))))) (q ()))))))) (q ())))) (c (q ((c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (a))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (f (r (r (a)))) (q ()))) (q ((a))))) (q ())) (q ())))) (q ()))) (c (i (= (f (r (a))) (q 0x{originID})) (q (c (q 53) (c (sha256 (f (r (a))) (f (r (r (a)))) (f (r (r (r (a)))))) (q ())))) (q (c (q 53) (c (sha256 (f (r (a))) (f (r (r (a)))) (q ())) (q ()))))) (a)))) (a))))"
         # Check if parent_info is a list or an atom and then run normal case or eve case depending
         core = f"((c (i (l (f (r (a)))) (q {normal_case}) (q {eve_case}) ) (a)))"
+        #breakpoint()
         return core
 
     # This is for spending a recieved coloured coin
@@ -297,6 +245,7 @@ class CCWallet(Wallet):
         aggees = aggees + ")"
 
         sol = f"({core} {parent_str} {amount} {innerpuzreveal} {innersol} {auditor_formatted} {aggees})"
+        #breakpoint()
         return Program(binutils.assemble(sol))
 
     # A newly minted coloured coin has a special spend before it can act like normal to ensure parent is formatted correctly
