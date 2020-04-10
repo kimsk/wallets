@@ -29,7 +29,7 @@ class CCWallet(Wallet):
         super().notify(additions, deletions)
 
     def cc_notify(self, additions, deletions, body):
-        search_for_parent = []
+        search_for_parent = set()
 
         # Update list of generated puzzles
         for i in reversed(range(self.next_address)):
@@ -42,11 +42,14 @@ class CCWallet(Wallet):
         for coin in additions:
             if coin.puzzle_hash in self.my_cc_puzhashes:
                 self.my_coloured_coins[coin] = (self.my_cc_puzhashes[coin.puzzle_hash][0], self.my_cc_puzhashes[coin.puzzle_hash][1])
-                search_for_parent.append(coin)
+                self.parent_info[coin.name()] = (coin.parent_coin_info, ProgramHash(self.my_coloured_coins[coin][0]), coin.amount)
+                if coin.parent_coin_info not in self.parent_info:
+                    search_for_parent.add(coin)
         # Remove coins that got spent
         for coin in deletions:
             if coin in self.my_coloured_coins:
                 self.my_coloured_coins.pop(coin)
+
             # Search for received coin parent info in block reveal
             # this can also be done manually with off network info by just updating self.parent_info
             for cc in search_for_parent:
