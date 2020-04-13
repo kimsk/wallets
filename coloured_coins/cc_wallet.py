@@ -130,16 +130,6 @@ class CCWallet(Wallet):
     # takes a list of amounts where the length is the number of coins to generate
     def cc_generate_spend_for_genesis_coins(self, amounts, genesisCoin=None):
         total_amount = sum(amounts)
-        spendable_am = await self.wallet_state_manager.get_unconfirmed_spendable_for_wallet(
-            self.wallet_info.id
-        )
-
-        if total_amount > spendable_am:
-            self.log.warning(
-                f"Can't select amount higher than our spendable balance {total_amount}, spendable {spendable_am}"
-            )
-            return None
-
         # select an uncoloured coin to be the genesis coin for this colour
         if genesisCoin is None:
             genesisCoin = self.temp_utxos.pop()
@@ -176,6 +166,7 @@ class CCWallet(Wallet):
                     genesisCoin.name(),
                     amount,
                     binutils.assemble("((q ()) ())"),
+                    newpuzzle,
                 )
             )
             self.eve_coloured_coins[Coin(genesisCoin, newpuzzlehash, amount)] = (
@@ -229,7 +220,7 @@ class CCWallet(Wallet):
             core,
             coin.parent_coin_info,
             coin.amount,
-            binutils.disassemble(innerpuz),
+            f"0x{coin.puzzle_hash}",
             "((q ()) ())",
             None,
             None,
@@ -267,7 +258,7 @@ class CCWallet(Wallet):
         # aggees is left blank if you aren't the auditor otherwise it is a list of (primary_input, innerpuzhash, coin_amount, output_amount) for every coin in the spend
 
         # Compiled from coloured_coins.clvm
-        core = f"((c (q ((c (i (l (f (r (r (a))))) (q ((c (f (f (r (f (a))))) (c (f (a)) (c ((c (f (r (r (r (r (a)))))) (f (r (r (r (r (r (a))))))))) (c (q ()) (c (f (r (a))) (c (q ()) (c (sha256 (sha256 (f (f (r (r (a))))) ((c (f (r (f (f (a))))) (c (f (a)) (c (f (r (f (r (r (a)))))) (c (f (r (a))) (q ())))))) (f (r (r (f (r (r (a)))))))) ((c (f (r (f (f (a))))) (c (f (a)) (c ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (f (r (r (r (r (a)))))) (q ()))))) (c (f (r (a))) (q ())))))) (f (r (r (r (a)))))) (c (sha256 (f (f (r (r (r (r (r (r (a))))))))) ((c (f (r (f (f (a))))) (c (f (a)) (c (f (r (f (r (r (r (r (r (r (a)))))))))) (c (f (r (a))) (q ())))))) (f (r (r (f (r (r (r (r (r (r (a)))))))))))) (c (f (r (r (r (r (r (r (r (a))))))))) (q ())))))))))))) (q (c (c (q 51) (c ((c (f (r (f (f (a))))) (c (f (a)) (c ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (f (r (r (r (r (a)))))) (q ()))))) (c (f (r (a))) (q ())))))) (c (f (r (r (r (a))))) (q ())))) (c ((c (r (r (f (f (a))))) (c (f (a)) (c (f (r (r (a)))) (c ((c (f (r (f (f (a))))) (c (f (a)) (c ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (f (r (r (r (r (a)))))) (q ()))))) (c (f (r (a))) (q ())))))) (c (f (r (r (r (a))))) (q ()))))))) (q ()))))) (a)))) (c (q (((((c (i (l (f (r (a)))) (q ((c (f (f (f (f (a))))) (c (f (a)) (c (r (f (r (a)))) (c (f (r (r (a)))) (c (f (r (r (r (a))))) (c ((c (r (f (f (f (a))))) (c (f (a)) (c (sha256 (f (f (f (r (a))))) ((c (f (r (f (f (a))))) (c (f (a)) (c (f (r (f (f (r (a)))))) (c (f (r (r (r (a))))) (q ())))))) (f (r (r (f (f (r (a)))))))) (c (f (r (r (a)))) (c (f (r (r (r (f (f (r (a)))))))) (c (f (r (r (r (r (a)))))) (q ())))))))) (c (+ (f (r (r (f (f (r (a))))))) (f (r (r (r (r (r (a)))))))) (c (+ (f (r (r (r (f (f (r (a)))))))) (f (r (r (r (r (r (r (a))))))))) (q ()))))))))))) (q ((c (i (= (f (r (r (r (r (r (a))))))) (f (r (r (r (r (r (r (a))))))))) (q (f (r (r (r (r (a))))))) (q (x))) (a))))) (a))) 5 (c (q 52) (c (sha256 (f (r (a))) ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (a)))) (q ()))) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (a))))) (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ()))) (q ()))))) (q ())) (q ()))) (c (c (q 51) (c ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (a))) (q ()))) (q ((q ()))))) (q ()))) (q ()))))) (q (())))) (f (r (r (r (r (a)))))))) ((c (f (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (a))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (c (q 97) (c (f (r (r (a)))) (q ()))) (q ()))) (q ((a))))) (q ())) (q ())))) (q ()))) (q ()))))) (c (i (= (f (r (a))) (q 0x{originID})) (q (c (q 53) (c (sha256 (f (r (a))) (f (r (r (a)))) (f (r (r (r (a)))))) (q ())))) (q (c (q 53) (c (sha256 (f (r (a))) (f (r (r (a)))) (q ())) (q ()))))) (a))) (((c (r (f (r (f (a))))) (c (f (a)) (c (f (r (r (r (a))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (r (a))))))))) (c ((c (f (r (r (f (a))))) (c (f (a)) (c (f (r (a))) (c (f (r (r (a)))) (c (f (r (r (r (a))))) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ())))))))))) (q ())))))))) (c (i (f (r (r (r (a))))) (q ((c (f (f (f (f (a))))) (c (f (a)) (c (f (r (r (r (a))))) (c (f (r (r (a)))) (c (f (r (a))) (c (f (r (r (r (r (a)))))) (q (() ())))))))))) (q (f (r (r (r (r (a)))))))) (a))) ((c (i (f (r (a))) (q ((c (i (= (f (f (f (r (a))))) (q 51)) (q ((c (f (r (r (f (a))))) (c (f (a)) (c (r (f (r (a)))) (c (c (c (q 51) (c ((c (f (r (f (f (a))))) (c (f (a)) (c (f (r (f (f (r (a)))))) (c (f (r (r (r (a))))) (q ())))))) (c (f (r (r (f (f (r (a))))))) (q ())))) (f (r (r (a))))) (c (f (r (r (r (a))))) (c (+ (f (r (r (f (f (r (a))))))) (f (r (r (r (r (a))))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ()))))))))))) (q ((c (f (r (r (f (a))))) (c (f (a)) (c (r (f (r (a)))) (c (c (f (f (r (a)))) (f (r (r (a))))) (c (f (r (r (r (a))))) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ())))))))))))) (a)))) (q (c (c (q 53) (c (f (r (r (r (r (r (a))))))) (q ()))) (c (c (q 52) (c (sha256 (f (r (r (r (r (r (r (a)))))))) ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (r (a))))))) (q ()))) (q ((q ()))))) (q ()))) (q ()))))) (q ())) (q ()))) (c (c (q 51) (c ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (r (r (a)))))))) (q ()))) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (a)))))) (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ()))) (q ()))))) (q (())))) (f (r (r (a))))))))) (a))) ((c (i (l (f (r (a)))) (q ((c (i ((c (i ((c (i (l (f (f (r (a))))) (q (q ())) (q (q 1))) (a))) (q ((c (i (= (f (f (r (a)))) (q 97)) (q (q 1)) (q (q ()))) (a)))) (q (q ()))) (a))) (q (f (r (f (r (a)))))) (q (sha256 (q 2) ((c (f (r (r (r (f (a)))))) (c (f (a)) (c (f (f (r (a)))) (q ()))))) ((c (f (r (r (r (f (a)))))) (c (f (a)) (c (r (f (r (a)))) (q ())))))))) (a)))) (q (sha256 (q 1) (f (r (a)))))) (a))) (c (i (l (f (r (a)))) (q (sha256 (q 2) ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (f (f (r (a)))) (q ()))))) ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (sha256 (q 1) (f (r (a)))))) (a)))) (a))))"
+        core = f"((c (q ((c (i (l (f (r (r (a))))) (q ((c (f (f (r (f (a))))) (c (f (a)) (c ((c (f (r (r (r (r (a)))))) (f (r (r (r (r (r (a))))))))) (c (q ()) (c (f (r (a))) (c (q ()) (c (sha256 (sha256 (f (f (r (r (a))))) ((c (f (r (f (f (a))))) (c (f (a)) (c (f (r (f (r (r (a)))))) (c (f (r (a))) (q ())))))) (f (r (r (f (r (r (a)))))))) ((c (f (r (f (f (a))))) (c (f (a)) (c ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (f (r (r (r (r (a)))))) (q ()))))) (c (f (r (a))) (q ())))))) (f (r (r (r (a)))))) (c (sha256 (f (f (r (r (r (r (r (r (a))))))))) ((c (f (r (f (f (a))))) (c (f (a)) (c (f (r (f (r (r (r (r (r (r (a)))))))))) (c (f (r (a))) (q ())))))) (f (r (r (f (r (r (r (r (r (r (a)))))))))))) (c (f (r (r (r (r (r (r (r (a))))))))) (q ())))))))))))) (q (c (c (q 51) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (a))))) (q ())))) (c ((c (r (r (f (f (a))))) (c (f (a)) (c (f (r (r (a)))) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (a))))) (q ()))))))) (q ()))))) (a)))) (c (q (((((c (i (l (f (r (a)))) (q ((c (f (f (f (f (a))))) (c (f (a)) (c (r (f (r (a)))) (c (f (r (r (a)))) (c (f (r (r (r (a))))) (c ((c (r (f (f (f (a))))) (c (f (a)) (c (sha256 (f (f (f (r (a))))) ((c (f (r (f (f (a))))) (c (f (a)) (c (f (r (f (f (r (a)))))) (c (f (r (r (r (a))))) (q ())))))) (f (r (r (f (f (r (a)))))))) (c (f (r (r (a)))) (c (f (r (r (r (f (f (r (a)))))))) (c (f (r (r (r (r (a)))))) (q ())))))))) (c (+ (f (r (r (f (f (r (a))))))) (f (r (r (r (r (r (a)))))))) (c (+ (f (r (r (r (f (f (r (a)))))))) (f (r (r (r (r (r (r (a))))))))) (q ()))))))))))) (q ((c (i (= (f (r (r (r (r (r (a))))))) (f (r (r (r (r (r (r (a))))))))) (q (f (r (r (r (r (a))))))) (q (x))) (a))))) (a))) 5 (c (q 52) (c (sha256 (f (r (a))) ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (a)))) (q ()))) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (a))))) (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ()))) (q ()))))) (q ())) (q ()))) (c (c (q 51) (c ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (a))) (q ()))) (q ((q ()))))) (q ()))) (q ()))))) (q (())))) (f (r (r (r (r (a)))))))) ((c (f (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (a))) (q ()))) (c (c (c (q 5) (c (c (q 1) (c (c (q 97) (c (f (r (r (a)))) (q ()))) (q ()))) (q ((a))))) (q ())) (q ())))) (q ()))) (q ()))))) (c (i (= (f (r (a))) (q 0x{originID})) (q (c (q 53) (c (sha256 (f (r (a))) (f (r (r (a)))) (f (r (r (r (a)))))) (q ())))) (q (c (q 53) (c (sha256 (f (r (a))) (f (r (r (a)))) (q ())) (q ()))))) (a))) (((c (r (f (r (f (a))))) (c (f (a)) (c (f (r (r (r (a))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (r (a))))))))) (c ((c (f (r (r (f (a))))) (c (f (a)) (c (f (r (a))) (c (f (r (r (a)))) (c (f (r (r (r (a))))) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ())))))))))) (q ())))))))) (c (i (f (r (r (r (a))))) (q ((c (f (f (f (f (a))))) (c (f (a)) (c (f (r (r (r (a))))) (c (f (r (r (a)))) (c (f (r (a))) (c (f (r (r (r (r (a)))))) (q (() ())))))))))) (q (f (r (r (r (r (a)))))))) (a))) ((c (i (f (r (a))) (q ((c (i (= (f (f (f (r (a))))) (q 51)) (q ((c (f (r (r (f (a))))) (c (f (a)) (c (r (f (r (a)))) (c (c (c (q 51) (c ((c (f (r (f (f (a))))) (c (f (a)) (c (f (r (f (f (r (a)))))) (c (f (r (r (r (a))))) (q ())))))) (c (f (r (r (f (f (r (a))))))) (q ())))) (f (r (r (a))))) (c (f (r (r (r (a))))) (c (+ (f (r (r (f (f (r (a))))))) (f (r (r (r (r (a))))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ()))))))))))) (q ((c (f (r (r (f (a))))) (c (f (a)) (c (r (f (r (a)))) (c (c (f (f (r (a)))) (f (r (r (a))))) (c (f (r (r (r (a))))) (c (f (r (r (r (r (a)))))) (c (f (r (r (r (r (r (a))))))) (c (f (r (r (r (r (r (r (a)))))))) (q ())))))))))))) (a)))) (q (c (c (q 53) (c (f (r (r (r (r (r (a))))))) (q ()))) (c (c (q 52) (c (sha256 (f (r (r (r (r (r (r (a)))))))) ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (r (a))))))) (q ()))) (q ((q ()))))) (q ()))) (q ()))))) (q ())) (q ()))) (c (c (q 51) (c ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (c (q 7) (c (c (q 7) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (r (r (a)))))))) (q ()))) (c (c (q 5) (c (c (q 1) (c (f (r (r (r (r (a)))))) (q ()))) (q ((q ()))))) (q ())))) (q ()))) (q ()))) (q ()))))) (q (())))) (f (r (r (a))))))))) (a))) ((c (i (l (f (r (a)))) (q ((c (i ((c (i ((c (i (l (f (f (r (a))))) (q (q ())) (q (q 1))) (a))) (q ((c (i (= (f (f (r (a)))) (q 97)) (q (q 1)) (q (q ()))) (a)))) (q (q ()))) (a))) (q (f (r (f (r (a)))))) (q (sha256 (q 2) ((c (f (r (r (r (f (a)))))) (c (f (a)) (c (f (f (r (a)))) (q ()))))) ((c (f (r (r (r (f (a)))))) (c (f (a)) (c (r (f (r (a)))) (q ())))))))) (a)))) (q (sha256 (q 1) (f (r (a)))))) (a))) (c (i (l (f (r (a)))) (q (sha256 (q 2) ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (f (f (r (a)))) (q ()))))) ((c (r (r (r (r (f (a)))))) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (sha256 (q 1) (f (r (a)))))) (a)))) (a))))"
         return core
 
     # This is for spending a recieved coloured coin
@@ -321,68 +312,35 @@ class CCWallet(Wallet):
 
     # A newly minted coloured coin has a special spend before it can act like normal to ensure parent is formatted correctly
     def cc_generate_eve_spend(self, spendslist, sigs=[]):
-        # spendslist is [] of (coin, parent_info, outputamount, innersol)
-        auditor = spendslist[0][0]
-        core = None
-        if auditor in self.my_coloured_coins:
-            innerpuz = binutils.disassemble(self.my_coloured_coins[auditor][0])
-            core = self.my_coloured_coins[auditor][1]
-        elif auditor in self.eve_coloured_coins:
-            innerpuz = binutils.disassemble(self.eve_coloured_coins[auditor][0])
-            core = self.eve_coloured_coins[auditor][1]
+        # spendslist is [] of (coin, parent_info, outputamount, innersol, fullpuzzlereveal)
         list_of_solutions = []
         for spend in spendslist:
             coin = spend[0]
             innersol = spend[3]
             parent_info = spend[1]
-            if coin in self.my_coloured_coins:
-                innerpuz = binutils.disassemble(self.my_coloured_coins[coin][0])
-                solution = self.cc_make_solution(
-                    core,
-                    parent_info,
-                    coin.amount,
-                    innerpuz,
-                    binutils.disassemble(innersol),
-                    None,
-                    None,
+            # eve case just passes the full puzzlehash in the solution
+            innerpuz = coin.puzzle_hash
+
+            solution = self.cc_make_solution(
+                "()",
+                parent_info,
+                coin.amount,
+                f"0x{innerpuz}",
+                binutils.disassemble(innersol),
+                None,
+                None,
+            )
+            list_of_solutions.append(
+                CoinSolution(
+                    coin,
+                    clvm.to_sexp_f(
+                        [
+                            spend[4],
+                            solution,
+                        ]
+                    ),
                 )
-                list_of_solutions.append(
-                    CoinSolution(
-                        coin,
-                        clvm.to_sexp_f(
-                            [
-                                self.cc_make_puzzle(
-                                    ProgramHash(self.my_coloured_coins[coin][0]), core
-                                ),
-                                solution,
-                            ]
-                        ),
-                    )
-                )
-            elif coin in self.eve_coloured_coins:
-                innerpuz = binutils.disassemble(self.eve_coloured_coins[coin][0])
-                solution = self.cc_make_solution(
-                    core,
-                    parent_info,
-                    coin.amount,
-                    innerpuz,
-                    binutils.disassemble(innersol),
-                    None,
-                    None,
-                )
-                list_of_solutions.append(
-                    CoinSolution(
-                        coin,
-                        clvm.to_sexp_f(
-                            [
-                                self.cc_make_puzzle(
-                                    ProgramHash(self.eve_coloured_coins[coin][0]), core
-                                ),
-                                solution,
-                            ]
-                        ),
-                    )
-                )
+            )
 
         solution_list = CoinSolutionList(list_of_solutions)
         aggsig = BLSSignature.aggregate(sigs)

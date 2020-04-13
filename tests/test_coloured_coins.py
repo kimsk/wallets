@@ -80,7 +80,7 @@ def test_cc_single():
     coin = list(wallet_a.my_coloured_coins.keys()).copy().pop()
     core = wallet_a.my_coloured_coins[coin][1]
     wallet_b.cc_add_core(core)
-    
+
     assert ProgramHash(clvm.to_sexp_f(wallet_a.cc_make_puzzle(ProgramHash(wallet_a.my_coloured_coins[coin][0]), core))) == coin.puzzle_hash
     assert len(wallet_b.my_coloured_coins) == 0
     assert len(wallet_a.my_coloured_coins) == 1
@@ -214,7 +214,7 @@ def test_forgery():
     # don't need sigs or a proper innersol for eve spend
     spendlist = []
     innersol = binutils.assemble("()")
-    spendlist.append((coin, parent_info, coin.amount, innersol))
+    spendlist.append((coin, parent_info, coin.amount, innersol, wallet_a.cc_make_puzzle(wallet_a.my_coloured_coins[coin][0], core)))
     spend_bundle = wallet_a.cc_generate_eve_spend(spendlist)
     _ = run(remote.push_tx(tx=spend_bundle))
 
@@ -243,7 +243,7 @@ def test_forgery():
     spendlist = []
     for coin in coins:
         if coin.amount == 5000:
-            spendlist.append((coin, coin.parent_coin_info, coin.amount, innersol))
+            spendlist.append((coin, coin.parent_coin_info, coin.amount, innersol, wallet_a.cc_make_puzzle(wallet_a.my_coloured_coins[coin][0], core)))
             continue
     spend_bundle = wallet_a.cc_generate_eve_spend(spendlist)
     _ = run(remote.push_tx(tx=spend_bundle))
@@ -255,7 +255,7 @@ def test_forgery():
     spendlist = []
     for coin in coins:
         if coin.amount == 5000:
-            spendlist.append((coin, original_eve_parent, coin.amount, innersol))
+            spendlist.append((coin, original_eve_parent, coin.amount, innersol, wallet_a.cc_make_puzzle(wallet_a.my_coloured_coins[coin][0], core)))
             continue
     spend_bundle = wallet_a.cc_generate_eve_spend(spendlist)
     _ = run(remote.push_tx(tx=spend_bundle))
