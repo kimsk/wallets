@@ -20,8 +20,7 @@ class CCWallet(Wallet):
         self.my_cores = set()  # core is stored as a string
         self.my_coloured_coins = (
             dict()
-        )  #  {coin: (innerpuzzle as Program, core as string)}
-        self.eve_coloured_coins = dict()
+        )
         self.parent_info = (
             dict()
         )  # {coin.name(): (parent_coin_info, puzzle_hash, coin.amount)}
@@ -169,10 +168,6 @@ class CCWallet(Wallet):
                     newpuzzle,
                 )
             )
-            self.eve_coloured_coins[Coin(genesisCoin, newpuzzlehash, amount)] = (
-                innerpuz,
-                core,
-            )
         if change > 0:
             changepuzzlehash = self.get_new_puzzlehash()
             primaries.append({"puzzlehash": changepuzzlehash, "amount": change})
@@ -235,7 +230,6 @@ class CCWallet(Wallet):
             coin.puzzle_hash,
             coin.amount,
         )
-        self.eve_coloured_coins[Coin(coin, coin.puzzle_hash, 0)] = (innerpuz, core)
         return spend_bundle
 
     # This is for spending an existing coloured coin
@@ -548,8 +542,6 @@ class CCWallet(Wallet):
                 innersol = self.make_solution(consumed=[output_created.name()])
             if coin in self.my_coloured_coins:
                 innerpuz = self.my_coloured_coins[coin][0]
-            elif coin in self.eve_coloured_coins:
-                innerpuz = self.eve_coloured_coins[coin][0]
             # Use coin info to create solution and add coin and solution to list of CoinSolutions
             solution = self.cc_make_solution(
                 core,
