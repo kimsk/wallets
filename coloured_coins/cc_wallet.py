@@ -117,7 +117,10 @@ class CCWallet(Wallet):
         return puzzle[-2687:].split(")")[0]
 
     def get_genesis_from_core(self, core):
-        return core[-2678:].split(")")[0]
+        path = '(f (r (f (r (r (f (r (f (r (f (r (r (f (f (r (f (r (f (r (r (f (q {}))))))))))))))))))))))'
+        cost, val = clvm.run_program(Program(binutils.assemble(path.format(core))), None)
+        genesis = binutils.disassemble(val)[2:]
+        return genesis
 
     def get_innerpuzzle_from_puzzle(self, puzzle):
         return puzzle[9:75]
