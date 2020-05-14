@@ -44,8 +44,8 @@ setuptools.setup(
         (
             "puzzles",
             [
-                "puzzles/make_p2_delegated_puzzle_or_hidden_puzzle.clvm.hex",
-                "puzzles/make_puzzle_m_of_n_direct.clvm.hex",
+                "puzzles/make_p2_delegated_puzzle_or_hidden_puzzle.clvm"
+                "puzzles/make_puzzle_m_of_n_direct.clvm",
             ],
         )
     ],

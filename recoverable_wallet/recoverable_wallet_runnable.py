@@ -1,7 +1,7 @@
 import asyncio
 import cbor
 import sys
-from recoverable_wallet import RecoverableWallet
+from recoverable_wallet import RecoverableWallet, DurationType
 from chiasim.clients.ledger_sim import connect_to_ledger_sim
 from chiasim.wallet.deltas import additions_for_body, removals_for_body
 from chiasim.hashable import Coin, Header, HeaderHash, Body
@@ -42,7 +42,11 @@ async def spend_coins(wallet, ledger_api):
         return None
     tx = wallet.generate_signed_transaction(amount, puzzlehash)
     if tx is not None:
-        await ledger_api.push_tx(tx=tx)
+        r = await ledger_api.push_tx(tx=tx)
+        if type(r) is RemoteError:
+            print(f'Transaction rejected by mempool')
+        else:
+            print(f'Transaction submitted to mempool')
 
 
 async def process_blocks(wallet, ledger_api, last_known_header, current_header_hash):
@@ -109,7 +113,7 @@ def recovery_string_to_dict(recovery_string):
 
 async def get_unspent_coins(ledger_api, header_hash):
     r = await ledger_api.get_tip()
-    if r['genesis_hash'] == header_hash:
+    if r['genesis_hash'] == header_hash or not header_hash:
         return set()
 
     r = await ledger_api.hash_preimage(hash=header_hash)
@@ -127,9 +131,8 @@ async def get_unspent_coins(ledger_api, header_hash):
 async def restore(ledger_api, wallet, header_hash):
     recovery_string = input('Enter the recovery string of the wallet to be restored: ')
     recovery_dict = recovery_string_to_dict(recovery_string)
-    root_public_key_serialized = recovery_dict['root_public_key'].serialize()
-
-    recovery_pubkey = recovery_dict['root_public_key'].public_child(0).get_public_key().serialize()
+    root_public_key_serialized = bytes(recovery_dict['root_public_key'])
+    recovery_pubkey = bytes(recovery_dict['root_public_key'].public_child(0))
     unspent_coins = await get_unspent_coins(ledger_api, header_hash)
     recoverable_coins = []
     print('scanning', end='')
@@ -137,7 +140,8 @@ async def restore(ledger_api, wallet, header_hash):
         if wallet.can_generate_puzzle_hash_with_root_public_key(coin.puzzle_hash,
                                                                 root_public_key_serialized,
                                                                 recovery_dict['stake_factor'],
-                                                                recovery_dict['escrow_duration']):
+                                                                recovery_dict['escrow_duration'],
+                                                                recovery_dict['duration_type']):
             recoverable_coins.append(coin)
             print('*', end='', flush=True)
         else:
@@ -153,13 +157,15 @@ async def restore(ledger_api, wallet, header_hash):
         pubkey = wallet.find_pubkey_for_hash(coin.puzzle_hash,
                                              root_public_key_serialized,
                                              recovery_dict['stake_factor'],
-                                             recovery_dict['escrow_duration'])
+                                             recovery_dict['escrow_duration'],
+                                             recovery_dict['duration_type'])
         signed_transaction, destination_puzzlehash, amount = \
             wallet.generate_signed_recovery_to_escrow_transaction(coin,
                                                                   recovery_pubkey,
                                                                   pubkey,
                                                                   recovery_dict['stake_factor'],
-                                                                  recovery_dict['escrow_duration'])
+                                                                  recovery_dict['escrow_duration'],
+                                                                  recovery_dict['duration_type'])
         child = Coin(coin.name(), destination_puzzlehash, amount)
         r = await ledger_api.push_tx(tx=signed_transaction)
         if type(r) is RemoteError:
@@ -192,11 +198,13 @@ async def recover_escrow_coins(ledger_api, wallet):
         root_public_key = recovery_dict['root_public_key']
         secret_key = recovery_dict['secret_key']
         escrow_duration = recovery_dict['escrow_duration']
+        duration_type = recovery_dict['duration_type']
 
         signed_transaction = wallet.generate_recovery_transaction(coin_set,
                                                                   root_public_key,
                                                                   secret_key,
-                                                                  escrow_duration)
+                                                                  escrow_duration,
+                                                                  duration_type)
         r = await ledger_api.push_tx(tx=signed_transaction)
         if type(r) is RemoteError:
             print('Too soon to recover coin')
@@ -216,7 +224,7 @@ async def main_loop():
     escrow_duration = input('Enter escrow duration in number of blocks (defaults to 3): ')
     if escrow_duration == '':
         escrow_duration = '3'
-    wallet = RecoverableWallet(Decimal(stake_factor), int(escrow_duration))
+    wallet = RecoverableWallet(Decimal(stake_factor), int(escrow_duration), DurationType.BLOCKS)
     most_recent_header = None
     selection = ''
     while selection != 'q':
