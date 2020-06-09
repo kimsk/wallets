@@ -6,7 +6,6 @@ The full set of operators is documented [here](https://github.com/Chia-Network/c
 This guide will cover the basics of the language and act as an introduction to the structure of programs.
 You should be able to follow along by running a version of [clvm_tools](https://github.com/Chia-Network/clvm_tools).
 
-
 ## Types
 
 In ChiaLisp everything is either a list or an atom.
@@ -35,6 +34,7 @@ $ brun '(* (q 2) (q 4) (q 5))' '()'
 
 $ brun '(+ (q 10) (q 20) (q 30) (q 40))' '()'
 100
+```
 
 You may have noticed that the multiplication example above takes more than two parameters in the list.
 This is because many operators can take variable amounts of parameters.
@@ -48,7 +48,6 @@ There is also internal support for negatives.
 $ brun '(- (q 5) (q 7))' '()'
 -2
 
-
 $ brun '(+ (q 3) (q -8))' '()'
 -5
 ```
@@ -61,6 +60,7 @@ $ brun '(+ (q 0x000a) (q 0x000b))' '()'
 ```
 
 The final mathematical operator is equal which acts similarly to == in other languages.
+
 ```
 $ brun '(= (q 5) (q 6))' '()'
 ()
@@ -75,7 +75,6 @@ As you can see above this language interprets some data as boolean values.
 
 In this language an empty list `()` evaluate to `False`.
 Any other value evaluates to `True`, though internally `True` is represented with `1`.
-
 
 ```
 $ brun '(= (q 100) (q 90))' '()'
@@ -115,7 +114,6 @@ $ brun '(i (q (70 80 90)) (q 70) (q 80))' '()'
 
 Now seems like a good time to clarify further about lists and programs.
 
-
 ## Lists and Programs
 
 A list is any space-separated, ordered group of one or more elements inside brackets.
@@ -153,7 +151,6 @@ Programs in ChiaLisp tend to get built in this fashion.
 Smaller programs are assembled together to create a larger program.
 It is recommended that you create your programs in an editor with brackets matching!
 
-
 ## List Operators
 
 `f` returns the first element in a passed list.
@@ -186,7 +183,6 @@ $ brun '(c (q 100) (r (q (60 110 120))))' '()'
 $ brun '(f (r (r (q (100 110 120 130 140)))))' '()'
 120
 ```
-
 
 ## Solutions and Environment Variables
 
@@ -246,4 +242,4 @@ It is recommended you play with using the information presented here for a bit b
 
 This guide has not covered all of the operators available in ChiaLisp - try using some of the other ones listed [here](https://github.com/Chia-Network/clvm/blob/master/docs/clvm.org).
 
-When you are ready, you can move on to [Part 2](./part2_transactions.md).
+When you are ready, you can move on to [Part 2](https://github.com/Chia-Network/wallets/blob/master/docs/part2_transactions.md).
