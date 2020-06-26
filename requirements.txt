@@ -1,4 +1,4 @@
--e git+https://git@github.com/Chia-Network/ledger_sim.git@b1a4a69f3c3d4305854ac6632766e1a58a1aa70a#egg=ledger_sim
+-e git+https://git@github.com/Chia-Network/ledger_sim.git@155ac319b69499f32255719509ff873e653d4b55#egg=ledger_sim
 qrcode==6.1
 pyzbar==0.1.8
 Pillow==6.2.1
