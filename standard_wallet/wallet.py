@@ -2,8 +2,6 @@ import clvm
 from os import urandom
 from chiasim.hashable import Program, ProgramHash, CoinSolution, SpendBundle, BLSSignature, Coin
 from chiasim.hashable.CoinSolution import CoinSolutionList
-from chiasim.puzzles.p2_delegated_puzzle import puzzle_for_pk
-from chiasim.puzzles.p2_conditions import puzzle_for_conditions
 from chiasim.validation.Conditions import (
     conditions_by_opcode, make_create_coin_condition, make_assert_my_coin_id_condition, make_assert_min_time_condition, make_assert_coin_consumed_condition
 )
@@ -12,6 +10,9 @@ from chiasim.validation.consensus import (
 )
 
 from utilities.BLSHDKey import BLSPrivateHDKey
+
+from puzzles.p2_delegated_puzzle import puzzle_for_pk
+from puzzles.p2_conditions import puzzle_for_conditions
 
 
 class Wallet:
@@ -82,10 +83,10 @@ class Wallet:
         if amount > self.temp_balance:
             return None
         used_utxos = set()
-        while actual_sum < amount:
-            used_utxos.add(self.temp_utxos.pop())
-            actual_sum = sum(map(lambda coin: coin.amount, used_utxos))
-        self.temp_balance -= actual_sum
+        while sum(map(lambda coin: coin.amount, used_utxos)) < amount:
+            temp = self.temp_utxos.pop()
+            used_utxos.add(temp)
+            self.temp_balance -= temp.amount
         return used_utxos
 
     def puzzle_for_pk(self, pubkey):

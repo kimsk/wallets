@@ -1,0 +1,12 @@
+[build-system]
+requires = [
+    "clvm@git+https://github.com/Chia-Network/clvm.git@f26fc3a756772968f73531bb32b4351bf085260b#egg=clvm",
+    "clvm_tools==0.1.1",
+    "setuptools>=42",
+    "setuptools_scm[toml]>=3.4",
+    "wheel",
+]
+
+[tool.setuptools_scm]
+write_to = "version.py"
+fallback_version = "unknown"
