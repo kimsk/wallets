@@ -1,128 +1,190 @@
-# Part 4: The Compiler and Other Useful Information
+# Guide to the Higher Level Language
 
-In this part of the guide we will cover the compiler, some more examples, and some high level tips for creating programs in ChiaLisp.
+This guide assumes that you have already read the previous parts.
+It is highly recommended that you do so as the higher level language is built directly on top of the lower level language.
 
-## The Compiler
+## Run
 
-To compile this higher level language in terminal. Firstly install and set up the latest version of [clvm_tools](https://github.com/Chia-Network/clvm_tools).
+The first difference you need to be aware of for the higher level language is that you should call `run` instead of `brun`.
+This lets the runtime know that it should be including higher level features.
 
-To compile use:
+The first higher level feature you should be aware of is that it is no longer necessary to quote atoms.
+
+Compare `brun` and `run` here:
 ```
-$ run -s2 '(mod (*var names*) (*high level code*))'
-```
-The compiler has a number of tools that can make writing complex programs more manageable.
-
-### Naming Variables
-With variable names it is possible to name the elements that you expect in the solution list.
-
-```
-$ run -s2 '(mod (listOfNumbers listOfStrings listOfHex) (c listOfNumbers (c listOfStrings (c listOfHex (q ())))))'
-(c (f (a)) (c (f (r (a))) (c (f (r (r (a)))) (q ()))))
-
-$ brun '(c (f (a)) (c (f (r (a))) (c (f (r (r (a)))) (q ()))))' '((60 70 80) ("list" "of" "strings") (0xf00dbabe 0xdeadbeef 0xbadfeed1))'
-((60 70 80) ("list" 28518 "strings") (0xf00dbabe 0xdeadbeef 0xbadfeed1))
+$ brun '(+ 200 200)'
+FAIL: first of non-cons ()
+$ run '(+ 200 200)'
+400
 ```
 
-### Extra Operator: (qq) and (unquote)
+Run also gives us access to a number of convenient high level operators, which we will cover now.
 
-When creating Chialisp programs that return dynamically created Chialisp programs, the complexity can increase quickly.
-One way we can mitigate this when developing Chialisp is by using quasiquote. 
-This is a compiler tool that allows us to use quote and 'unquote' when we want to insert a dynamically created element.
+### list
 
-For example let's suppose we are creating a program that returns a program which simply quotes an address.
-The base instinct may be to write something like:
-```
-(q (q 0xdeadbeef))
-```
-Which when ran, does create a program as expected.
-```
-$ brun '(q (q 0xdeadbeef))'
-(q 0xdeadbeef)
-```
-But what about if we want to generate the address dynamically by running `(sha256 (f (a)))`?
-We couldn't put that inside the outer `q` as it would not be evaluated, and the returned program would be incorrect.
-
-For this we can use `(qq)` and `(unquote)` in the compiler:
-```
-$ run '(mod (x0 x1) (qq (q (unquote (sha256 x0)))))'
-(c (q 1) (c (sha256 (f (a))) (q ())))
-```
-And running this results in:
-```
-$ brun '(c (q 1) (c (sha256 (f (a))) (q ())))' '("hello")'
-(q 0x2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824)
-```
-This is quite a simple example, but when you are creating more complex programs that return dynamically created programs `quasiquote` can become very handy.
-
-### Extra Operator: (list)
-
-If we want to create a list during evaluation, you may have noticed we use `(c (A) (c (B) (c (C) (q ()))))`.
-This pattern gets messy and hard to follow if extended further than one or two elements.
-In the compiler there is support for an extremely convenient operator that creates these complex `c` structures for us.
+`list` takes any number of parameters and returns them put inside a list.
+This saves us from having to manually create nested `(c (A) (c (B) (q ())))` calls, which can get messy quickly.
 
 ```
-$ run -s2 '(mod (first second) (list 80 first 30 second))' '()'
-(c (q 80) (c (f (a)) (c (q 30) (c (f (r (a))) (q ())))))
-
-$ brun '(c (q 80) (c (f (a)) (c (q 30) (c (f (r (a))) (q ())))))' '(120 160)'
-(80 120 30 160)
+$ run '(list 100 "test" 0xdeadbeef)'
+(100 "test" 0xdeadbeef)
 ```
 
-Let's put these compiler tricks to use and demonstrate another useful kind of program.
+# if
 
-## Iterating Through a List
-
-One of the best uses for recursion is ChiaLisp is looping through a list.
-
-Let's make a program will sum a list of numbers.
-Remember `() == 0 == False`
-
-Here we will use `source` to refer to `(f (a))`, and `numbers` to refer to `(f (r (a)))`.
+`if` automatically puts our `i` statement into the lazy evaluation form so we do not need to worry about the unused code path being evaluated.
 
 ```
-(i numbers (+ (f numbers) ((c source (list source (r numbers))))) (q 0))
-```
-See how much more readable that is?
+$ run '(if (= (f (a)) 100) (q "success") (x))' '(100)'
+"success"
 
-Let's compile it.
-```
-$ run -s2 '(mod (source numbers) (i numbers (+ (f numbers) ((c source (list source (r numbers))))) (q 0)))'
-(i (f (r (a))) (+ (f (f (r (a)))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ())))))) (q ()))
+$ run '(if (= (f (a)) 100) (q "success") (x))' '(101)'
+FAIL: clvm raise ()
 ```
 
-But remember, we need to use lazy evaluation, so let's update that.
+### qq unquote
+
+`qq` allows us to quote something with selected portions being evaluated inside by using `unquote`.
+The advantages of this may not be immediately obvious but are extremely useful in practice as it allows us to substitute out sections of predetermined code.
+
+Suppose we are writing a program that returns another coin's puzzle.
+We know that a puzzle takes the form: `(c (c (q 50) (c (q 0xpubkey) (c (sha256tree (f (a))) (q ())))) ((c (f (a)) (f (r (a))))))`
+However we will want to change 0xpubkey to a value passed to us through our solution.
 
 ```
-((c (i (f (r (a))) (q (+ (f (f (r (a)))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (q ()))) (a)))
+$ run '(qq (c (c (q 50) (c (q (unquote (f (a)))) (c (sha256tree (f (a))) (q ())))) ((c (f (a)) (f (r (a)))))))' '(0xdeadbeef)'
+
+(c (c (q 50) (c (q 0xdeadbeef) (c (sha256tree (f (a))) (q ())))) ((c (f (a)) (f (r (a))))))
 ```
 
-The next step is to plug it in to our recursive program pattern from [part 3](part3_deeperintoCLVM.md)
-```
-((c (q ((c (f (a)) (a)))) (c (q (*program*)) (c (f (a)) (q ())))))
-```
+### and
 
-So the final puzzle for summing a list of numbers in a solution looks like this
+`and` takes two boolean values and returns true if both values are true
 
 ```
-((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q (+ (f (f (r (a)))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (q ()))) (a)))) (c (f (a)) (q ())))))
-```
+$ run '(and (= (f (a)) 10) (= (f (r (a))) 20))' '(10 20)'
+1
 
-We now have a program that will sum a list of numbers that works whatever the size of the list.
-
-```
-$ brun '((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q (+ (f (f (r (a)))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (q ()))) (a)))) (c (f (a)) (q ())))))' '((70 80 90 100))'
-340
-
-$ brun '((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q (+ (f (f (r (a)))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (q ()))) (a)))) (c (f (a)) (q ())))))' '((35 128 44 100))'
-307
-
-$ brun '((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q (+ (f (f (r (a)))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (q ()))) (a)))) (c (f (a)) (q ())))))' '((35))'
-35
-
-$ brun '((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q (+ (f (f (r (a)))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (q ()))) (a)))) (c (f (a)) (q ())))))' '(())'
+$ run '(and (= (f (a)) 10) (= (f (r (a))) 20))' '(10 25)'
+()
+$ run '(and (= (f (a)) 10) (= (f (r (a))) 20))' '(15 20)'
 ()
 
-$ brun '((c (q ((c (f (a)) (a)))) (c (q ((c (i (f (r (a))) (q (+ (f (f (r (a)))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (q ()))) (a)))) (c (f (a)) (q ())))))' '((100 100 100 100 100 100))'
-600
 ```
 
+## Compiling to CLVM with Mod
+
+It is important to remember that in practice smart contracts will run using the lower level language, so none of the above operators will work on the network.
+What we *can* do however is compile them down to the lower level language.
+This is where `mod` comes in.
+`mod` is an operator that lets the runtime know that it needs to be compiling the code rather than actually running it.
+
+`(mod A B)` takes two or more parameters. The first is used to name parameters that are passed in, and the last is the higher level script which is to be compiled.
+
+```
+$ run '(mod (arg_one arg_two) (list arg_one))'
+(c (f (a)) (q ()))
+```
+As you can see it returns our program in compiled lower level form.
+```
+$ brun '(c (f (a)) (q ()))' '(100 200 300)'
+(100)
+```
+
+You may be wondering what other parameters `mod` takes, between variable names and source code.
+
+## Functions, Macros and Constants
+
+In the lower level language functions were created by passing a copy of the source code to an eval so that it could call itself again.
+In the higher level language we can define functions, macros, and constants before our program by using `defun`, `defmacro` and `defconstant`.
+
+We can define as many of these as we like before the main source code.
+Usually a program will be structured like this:
+
+```
+(mod (arg_one arg_two)
+  (defconstant const_name value)
+  (defun function_name (parameter_one parameter_two) (*function_code*))
+  (defun another_function (param_one param_two param_three) (*function_code*))
+  (defmacro macro_name (param_one param_two) (*macro_code*))
+
+  (main program)
+)
+```
+
+A few things to note:
+- Functions can reference themselves in their code but macros cannot as they are inserted at compile time, similar to inline functions.
+- Both functions and macros can reference other functions, macros and constants.
+- Macros that refer to their parameters must be quasiquoted with the parameters unquoted
+- Be careful of infinite loops in macros that reference other macros.
+- Comments can be written with semicolons
+
+Now lets look at some example programs using functions.
+
+### Factorial
+
+```
+(mod (arg_one)
+  ; function definitions
+  (defun factorial (input)
+    (if (= input 1) 1 (* (factorial (- input 1)) input))
+  )
+
+  ; main
+  (factorial arg_one)
+)
+```
+We can save these files to .clvm files which can be run from the commandline.
+Saving the above example as `factorial.clvm` allows us to do the following.
+```
+$ run factorial.clvm
+((c (q ((c (f (a)) (c (f (a)) (c (f (r (a))) (q ())))))) (c (q ((c (i (= (f (r (a))) (q 1)) (q (q 1)) (q (* ((c (f (a)) (c (f (a)) (c (- (f (r (a))) (q 1)) (q ()))))) (f (r (a)))))) (a)))) (a))))
+
+$ brun '((c (q ((c (f (a)) (c (f (a)) (c (f (r (a))) (q ())))))) (c (q ((c (i (= (f (r (a))) (q 1)) (q (q 1)) (q (* ((c (f (a)) (c (f (a)) (c (- (f (r (a))) (q 1)) (q ()))))) (f (r (a)))))) (a)))) (a))))' '(5)'
+120
+```
+
+### Squaring a List
+
+Now lets do an example which uses macros as well.
+When writing a macro it must be quasiquoted with the parameters being unquoted.
+
+We can also take this time to show another feature of the compiler.
+You can name each parameter in a list or you can name the list itself.
+This works at any place where you name parameters, and allows you to handle lists where you aren't sure of the size.
+
+Here we define a macro to square a parameter and then a function to square a list.
+
+```
+(mod args
+
+  (defmacro square (input)
+    (qq (* (unquote input) (unquote input)))
+  )
+
+  (defun sqre_list (my_list)
+    (if my_list
+      (c (square (f my_list)) (sqre_list (r my_list)))
+      my_list
+    )
+  )
+
+  (sqre_list args)
+)
+```
+
+Compiling and running this code results in this:
+```
+$ run square_list.clvm
+((c (q ((c (f (a)) (c (f (a)) (c (r (a)) (q ())))))) (c (q ((c (i (f (r (a))) (q (c (* (f (f (r (a)))) (f (f (r (a))))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (f (r (a))))) (a)))) (a))))
+
+$ brun '((c (q ((c (f (a)) (c (f (a)) (c (r (a)) (q ())))))) (c (q ((c (i (f (r (a))) (q (c (* (f (f (r (a)))) (f (f (r (a))))) ((c (f (a)) (c (f (a)) (c (r (f (r (a)))) (q ()))))))) (q (f (r (a))))) (a)))) (a))))' '(10 9 8 7)'
+(100 81 64 49)
+```
+
+# Conclusion
+
+You should now have the context and knoweldge needed to write your own smart contracts.
+Remember from [part 2](./part2_transactions) that these programs run on the blockchain and instruct the blockchain what to do with the coin's value.
+
+If you have further questions feel free to ask on Keybase.
