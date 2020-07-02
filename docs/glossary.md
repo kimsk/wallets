@@ -45,8 +45,10 @@ Unspents (UTXO set/unspent transaction output set) - This is the set of all unsp
 
 * **Puzzle Generator ID** - This is the hash of a wallet's puzzle generator. A wallet can do a hash-lookup and see if it already knows the source code for that puzzle generator. If not, it will request the full source code and store that information in its lookup table.
 
-* **Authorized Payees** - Authorized Payees is a smart contract that means that Wallet A can give Wallet B some money, but Wallet B is only allowed to spend that money in ways that Wallet A has explicitly signed off on.
-
 * **Smart Contract** - A smart contract is a specialised ChiaLisp puzzle which locks a coin up and enables complex blockchain interactions.
 
 * **Coloured Coins** - Coloured Coins are a special kind of chia coin which are created by users. A coloured coin is a uniquely marked subset of chia which can't be forged and can be linked to other assets.
+
+* **Authorized Payees** - Authorized Payees is a smart contract that means that Wallet A can give Wallet B some money, but Wallet B is only allowed to spend that money in ways that Wallet A has explicitly authorised.
+
+* **Decentralised ID** - A decentralised ID is a smart contract that enables a wallet to act as an ID which can create messages to other IDs. Based on the work of the [identity foundation](https://identity.foundation/)
