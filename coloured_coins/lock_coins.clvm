@@ -19,15 +19,15 @@
 
 
 (mod
-  ;; TODO: remove my-puzzle-hash, since it's redundant and completely determined by `list-of-input-coins`
-
-  (mod-code list-of-input-coins (my-puzzle-hash input-index))
+  (mod-code list-of-input-coins input-index)
 
   (include "chia-constants.clvm")
   (include "curry.clvm")
   (include "sha256tree.clvm")
 
   (defun item-at-index (items index)
+    ;; array indexing
+    ;; pick out and return items[index]
     (if index
       (item-at-index (r items) (- index 1))
       (f items)
@@ -35,35 +35,47 @@
   )
 
   (defun lock-id-for-input (lock-puzzle-hash input-coin)
-    ;; (sha256 parent_id puzzle_hash 0)
-    ;; puzzle_hash = (sha256tree_esc (curry_args func_hash args) func_hash)
+    ;; generate the coin ID for a lock with the given puzzle hash coming from the given inpu
     (sha256 (coin-id-for-coin input-coin)
             lock-puzzle-hash
             0)
   )
 
-  (defun create-assert-consumed (lock-puzzle-hash input-coins)
+  (defun create-assert-consumed-list (lock-puzzle-hash input-coins)
+    ;; generate the list of (ASSERT_COIN_CONSUMED xxx) conditions
     (if input-coins
       (c (list ASSERT_COIN_CONSUMED (lock-id-for-input lock-puzzle-hash (f input-coins)))
-         (create-assert-consumed lock-puzzle-hash (r input-coins)))
+         (create-assert-consumed-list lock-puzzle-hash (r input-coins)))
       (q ())
     )
   )
 
-  (defun create-assert-me (input-id my-puzzle-hash)
+  (defun-inline create-assert-me (input-id lock-puzzle-hash)
     ;; generate (ASSERT_MY_ID xxx) condition
-    (list ASSERT_MY_COIN_ID (sha256 input-id my-puzzle-hash 0))
+    (list ASSERT_MY_COIN_ID (sha256 input-id lock-puzzle-hash 0))
   )
 
   (defun coin-id-for-coin ((parent-id puzzle-hash amount))
+    ;; calculate the coin ID for a coin
     (sha256 parent-id puzzle-hash amount)
   )
 
-  (defun lock-puzzle-hash-for-inputs (mod-code-hash list-of-input-coins)
-    (sha256tree_esc (curry_args mod-code-hash mod-code-hash list-of-input-coins) mod-code-hash)
+  (defun-inline lock-puzzle-hash-for-inputs (mod-code-hash list-of-input-coins)
+    ;; generate the puzzle hash for a list of input coins
+    (sha256tree_esc (curry mod-code-hash mod-code-hash list-of-input-coins) mod-code-hash)
   )
 
-  (c (create-assert-me (coin-id-for-coin (item-at-index list-of-input-coins input-index)) my-puzzle-hash)
-     (create-assert-consumed (lock-puzzle-hash-for-inputs (sha256tree mod-code) list-of-input-coins) list-of-input-coins)
+  (defun main (mod-code list-of-input-coins lock-puzzle-hash input-index)
+    ;; generate conditions
+    (c (create-assert-me (coin-id-for-coin (item-at-index list-of-input-coins input-index)) lock-puzzle-hash)
+      (create-assert-consumed-list lock-puzzle-hash
+                                   (if input-index
+                                     (c (f list-of-input-coins) (q ()))
+                                     list-of-input-coins
+                                   )
+      )
+    )
   )
+
+  (main mod-code list-of-input-coins (lock-puzzle-hash-for-inputs (sha256tree mod-code) list-of-input-coins) input-index)
 )
