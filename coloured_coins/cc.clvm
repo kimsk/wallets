@@ -1,0 +1,126 @@
+; Coins locked with this puzzle are spendable coloured coins.
+;
+; To spend a coloured coin, choose a list of one or more inputs, I_0, ... I_n. The first is the "primary" input.
+;
+; The inputs all commit to this list using an ephemeral "lock" coin, which includes
+; a commitment to the inputs. The "lock" coins are L_0, ... L_n, and all have the same
+; puzzle:
+;
+;  (curry_args lock-mod lock-mod list-of-input-coins)
+;
+; This puzzle commits to the list of input coins.
+;
+; So each L_1, ..., L_n will yield exactly ((ASSERT_CONSUMED L_0)) when spent.
+; And L_0 will yield ((ASSERT_CONSUMED L_0) (ASSERT_CONSUMED L_1) ... (ASSERT_CONSUMED L_n))
+; This ensures that you can't spend one without spending them all.
+;
+; I_0, ..., I_n yields ((ASSERT_ME I_k) (CREATE_COIN L_puzzle_for_coin_list 0) (ASSERT_CONSUMED L_k))
+; This ensures it both creates and consumes its lock coin (and then, L_0, and thus, all other inputs).
+;
+; Note that there is NOTHING specific to coloured coins above this line, and this locking mechanism
+; can be used for ANY transactions.
+;
+; I_0 is special. It still yields ((ASSERT_ME I_0) (CREATE_COIN L_puzzle_for_coin_list 0) (ASSERT_CONSUMED L_0)).
+; But includes additional logic for coloured coins.
+; It should yield (CREATE_COIN payment_hash_n amount_n) for n in outputs
+; It must be provided proof that all inputs are cc
+; It must be provided proof that all outputs are cc
+; It must ensure input amounts equal output amounts.
+
+(mod (genesis_coin_id
+      inner-puzzle
+      (
+        mod-code               ;; the code to this module, to be used with `curry`
+        inner-puzzle-solution
+        (my-parent-id my-puzzle-hash my-amount)
+        list-of-input-coins
+        proof-of-cc-inputs
+        proof-of-cc-outputs ;; not strictly necessary if we don't care about colours being destroyed
+      )
+     )
+
+     (include "chia-constants.clvm")
+     (include "curry.clvm")
+     (include "sha256tree.clvm")
+
+    (defun generate-conditions (puzzle_info solution)
+      
+    )
+
+    (defun generate-assert-consumed-lock (lock-coin-id)
+      (list ASSERT_CONSUMED lock-coin-id)
+    )
+
+    (defun lock-coin-puzzle-for-input-list-and-index (list-of-input-coins input-index)
+      (if input-index
+        ()
+      )
+    )
+
+    (defun primary-lock-coin-puzzle (list-of-input-coins)
+      ;;
+    )
+
+    (defun non-primary-lock-coin-puzzle (list-of-input-coins)
+      (qq (q ((ASSERT_CONSUMED (unquote (f list-of-input-coins))))))
+    )
+
+    (defun-inline is-parent-genesis (my_parent_id genesis_coin_id my_puzzle_hash my_amount)
+      (= genesis_coin_id (sha256 my_parent_id my_puzzle_hash my_amount)) ;; parent is the genesis
+    )
+
+    (defun is-parent-cc (mod-code my_parent genesis_coin_id (my_parent_id my_puzzle_hash my_amount))
+      ; we need to prove that the parent is a cc
+      (or
+          ;; parent is the genesis
+          (is-parent-genesis my_parent_id genesis_coin_id parent_puzzle_hash parent_amount)
+          ;; parent has puzzle hash matching the correct form
+          (is-parent-puzzle-hash-correct my_parent_id)
+      )
+    )
+
+    (defun (prepend-create-assert-lock-coin my-id L_k-puzzle-hash core)
+      (c (list CREATE_COIN L_k-puzzle-hash 0)
+        (c (list ASSERT_CONSUMED (sha256 my-id L_k-puzzle-hash 0))) core)
+    )
+
+    ;; create (ASSERT_ME my_id)
+    ;; With this, we can rest assured that `my-parent-id` `my-puzzle-hash` `my-amount` are all correct
+    (defun (prepend-assert-me my_id core)
+      (c (list ASSERT_ME my-id) core)
+    )
+
+    (defun main (
+      genesis_coin_id
+      inner-puzzle
+      (
+        mod-code
+        inner-puzzle-solution
+        my-id
+        (my-parent-id my-puzzle-hash my-amount)
+        list-of-input-coins
+        proof-of-cc-inputs
+        proof-of-cc-outputs ;; not strictly necessary if we don't care about colours being destroyed
+      )
+     )
+        (prepend-assert-me my-id
+          (prepend-create-assert-lock-coin my-id (lock-puzzle-hash-for-inputs list-of-input-coins)
+            (core-for-primary-input XXX)
+          )
+    )
+  )
+
+    (main
+        genesis_coin_id
+        inner-puzzle
+        (list
+            mod-code
+            inner-puzzle-solution
+            (sha256 my-parent-id my-puzzle-hash my-amount)
+            (list my-parent-id my-puzzle-hash my-amount)
+            list-of-input-coins
+            proof-of-cc-inputs
+            proof-of-cc-outputs
+        )
+    )
+)

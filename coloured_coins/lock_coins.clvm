@@ -1,0 +1,69 @@
+; This implements "lock coins", simulating bitcoin transactions.
+;
+; Choose a list of one or more inputs, I_0, ... I_n. The first is the "primary" input.
+;
+; The inputs all commit to this list using an ephemeral "lock" coin, which includes
+; a commitment to the inputs. The "lock" coins are L_0, ... L_n, and all have the same
+; puzzle:
+;
+;  (curry_args lock-mod lock-mod list-of-input-coins)
+;
+; When spent, L_0 will yield ((ASSERT_MY_ID xxx) (ASSERT_CONSUMED L_0) (ASSERT_CONSUMED L_1) ... (ASSERT_CONSUMED L_n))
+; Each L_1, ..., L_n will yield exactly ((ASSERT_MY_ID xxx) (ASSERT_CONSUMED L_0)) when spent.
+; This ensures that you can't spend one without spending them all.
+;
+; Each of I_0, ..., I_n must yield ((CREATE_COIN L_puzzle_for_coin_list 0) (ASSERT_CONSUMED L_0))
+; This ensures it both creates its lock coin, and consumes L_0 (and thus, all other inputs).
+;
+; This locking mechanism can be used for ANY transaction. Its first use will be coloured coins.
+
+
+(mod
+  ;; TODO: remove my-puzzle-hash, since it's redundant and completely determined by `list-of-input-coins`
+
+  (mod-code list-of-input-coins (my-puzzle-hash input-index))
+
+  (include "chia-constants.clvm")
+  (include "curry.clvm")
+  (include "sha256tree.clvm")
+
+  (defun item-at-index (items index)
+    (if index
+      (item-at-index (r items) (- index 1))
+      (f items)
+    )
+  )
+
+  (defun lock-id-for-input (lock-puzzle-hash input-coin)
+    ;; (sha256 parent_id puzzle_hash 0)
+    ;; puzzle_hash = (sha256tree_esc (curry_args func_hash args) func_hash)
+    (sha256 (coin-id-for-coin input-coin)
+            lock-puzzle-hash
+            0)
+  )
+
+  (defun create-assert-consumed (lock-puzzle-hash input-coins)
+    (if input-coins
+      (c (list ASSERT_COIN_CONSUMED (lock-id-for-input lock-puzzle-hash (f input-coins)))
+         (create-assert-consumed lock-puzzle-hash (r input-coins)))
+      (q ())
+    )
+  )
+
+  (defun create-assert-me (input-id my-puzzle-hash)
+    ;; generate (ASSERT_MY_ID xxx) condition
+    (list ASSERT_MY_COIN_ID (sha256 input-id my-puzzle-hash 0))
+  )
+
+  (defun coin-id-for-coin ((parent-id puzzle-hash amount))
+    (sha256 parent-id puzzle-hash amount)
+  )
+
+  (defun lock-puzzle-hash-for-inputs (mod-code-hash list-of-input-coins)
+    (sha256tree_esc (curry_args mod-code-hash mod-code-hash list-of-input-coins) mod-code-hash)
+  )
+
+  (c (create-assert-me (coin-id-for-coin (item-at-index list-of-input-coins input-index)) my-puzzle-hash)
+     (create-assert-consumed (lock-puzzle-hash-for-inputs (sha256tree mod-code) list-of-input-coins) list-of-input-coins)
+  )
+)
