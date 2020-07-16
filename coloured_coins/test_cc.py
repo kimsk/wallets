@@ -64,7 +64,7 @@ def load_clvm(path, search_paths):
 
 
 def cc_puzzle_for_inner_puzzle(mod_code, genesis, inner_puzzle):
-    return curry(mod_code, [mod_code, genesis, inner_puzzle])
+    return curry(mod_code, [sha256tree(mod_code), genesis, inner_puzzle])
 
 
 def main():
@@ -78,6 +78,7 @@ def main():
     genesis_puzzle_hash = assemble("1")  # return the solution verbatim
     genesis_coin = [b"GENESIS", genesis_puzzle_hash, 100000]
 
+    mod_code_hash = to_sexp_f(sha256tree(mod_code))
     prog = mod_code
     genesis_coin_hash = sha256(to_sexp_f(genesis_coin))
 
@@ -98,13 +99,15 @@ def main():
 
     for input_index in range(3):
         my_id = sha256(to_sexp_f(list_of_input_coins[input_index]))
-        dest_ph = bytes([4]) * 32
-        coin_value = 500 + 1000 * input_index
+        dest_inner_puzzle = to_sexp_f(1)
+        dest_puzzle = cc_puzzle_for_inner_puzzle(mod_code, genesis_coin_hash, dest_inner_puzzle)
+        dest_ph = sha256tree(dest_puzzle)
+        coin_value = 4500
         if input_index == 0:
             inner_puzzle_solution = assemble(f"((51 LOCK_VALUE 0) (53 0x{my_id.hex()}) (51 0x{dest_ph.hex()} {coin_value}))")
         else:
             inner_puzzle_solution = assemble(f"((51 LOCK_VALUE 0) (53 0x{my_id.hex()}))")
-        solution = to_sexp_f([list_of_input_coins[:input_index+1], inner_puzzle_solution, input_index, [0], [0], []])
+        solution = to_sexp_f([list_of_input_coins, inner_puzzle_solution, input_index, [0, 0, 0], [0, 0, 0], [0, sha256tree(dest_inner_puzzle)]])
         args = solution
         print(f"\nbrun -y main.sym '{bu_disassemble(prog)}' '{bu_disassemble(args)}'")
         cost, r = run_program(prog, args)
