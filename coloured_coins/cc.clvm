@@ -86,6 +86,13 @@
        )
      )
 
+     (defun is-coin-creation-valid (condition mod-code-hash genesis-coin-id lock-puzzle-hash output-proof)
+       (or
+         (is-lock-creation condition lock-puzzle-hash)
+         (= (cc-puzzle-hash mod-code-hash genesis-coin-id output-proof) (f (r condition)))
+       )
+     )
+
      (defun are-auditor-coin-creations-valid
        ;; iterator over `conditions` to ensure that all CREATE_COIN conditions are valid
        ;; ie. they either are creating the lock coin or paying to a cc
@@ -96,8 +103,29 @@
           lock-puzzle-hash
           output-proofs
         )
-        ;; TODO: write this
-        1
+        (if conditions
+          (if (is-condition-create-coin (f conditions))
+              (and
+                (is-coin-creation-valid
+                  (f conditions)
+                  mod-code-hash
+                  genesis-coin-id
+                  lock-puzzle-hash
+                  (f output-proofs)
+                )
+                (are-auditor-coin-creations-valid
+                  mod-code-hash
+                  genesis-coin-id
+                  (r conditions)
+                  lock-puzzle-hash
+                  (r output-proofs)
+                )
+              )
+              (are-auditor-coin-creations-valid
+                mod-code-hash genesis-coin-id (r conditions) lock-puzzle-hash output-proofs)
+            )
+          1
+        )
       )
 
      (defun item-at-index (items index)
@@ -141,6 +169,7 @@
      )
 
      (defun is-in-list (atom items)
+       ;; returns 1 iff `atom` is in the list of `items`
        (if items
          (if (= atom (f items))
            1
