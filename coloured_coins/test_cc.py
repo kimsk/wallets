@@ -103,10 +103,10 @@ def main():
         if input_index == 0:
             inner_puzzle_solution = assemble(f"((51 LOCK_VALUE 0) (53 0x{my_id.hex()}) (51 0x{dest_ph.hex()} {coin_value}))")
         else:
-            inner_puzzle_solution = assemble(f"((51 LOCK_VALUE 0) (53 0x{my_id.hex()}) (51 0x{dest_ph.hex()} {coin_value}))")
-        solution = to_sexp_f([list_of_input_coins[input_index:input_index+1], inner_puzzle_solution, 0, [0], []])
+            inner_puzzle_solution = assemble(f"((51 LOCK_VALUE 0) (53 0x{my_id.hex()}))")
+        solution = to_sexp_f([list_of_input_coins[:input_index+1], inner_puzzle_solution, input_index, [0], [0], []])
         args = solution
-        print(f"\nbrun -y main.sym '{disassemble(prog)}' '{disassemble(args)}'")
+        print(f"\nbrun -y main.sym '{bu_disassemble(prog)}' '{bu_disassemble(args)}'")
         cost, r = run_program(prog, args)
         print(disassemble(r))
 
@@ -114,8 +114,6 @@ def main():
         parent_coin_id = sha256(to_sexp_f(list_of_input_coins[_]))
         my_coin_id = sha256(to_sexp_f([parent_coin_id, cc_puzzle_hash, 0]))
         print(f"my_coin_id[{_}] = {my_coin_id.hex()}")
-
-    print(f"\nbrun -y main.sym '{disassemble(prog)}' '{disassemble(args)}'")
 
 
 if __name__ == "__main__":

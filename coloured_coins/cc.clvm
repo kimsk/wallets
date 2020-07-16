@@ -1,12 +1,12 @@
-; Coins locked with this puzzle are spendable coloured coins.
+; Coins locked with this puzzle are spendable ccs.
 ;
-; To spend a coloured coin, choose a list of one or more inputs, I_0, ... I_n. The first is the "primary" input.
+; To spend a cc, choose a list of one or more inputs, I_0, ... I_n. The first is the "primary" input.
 ;
 ; The inputs all commit to this list using an ephemeral "lock" coin, which includes
 ; a commitment to the inputs. The "lock" coins are L_0, ... L_n, and all have the same
 ; puzzle:
 ;
-;  (curry_args lock-mod lock-mod list-of-input-coins)
+;  (curry_args lock-mod lock-mod input-coins)
 ;
 ; This puzzle commits to the list of input coins.
 ;
@@ -14,7 +14,7 @@
 ; And L_0 will yield ((ASSERT_CONSUMED L_0) (ASSERT_CONSUMED L_1) ... (ASSERT_CONSUMED L_n))
 ; This ensures that you can't spend one without spending them all.
 ;
-; Note that there is NOTHING specific to coloured coins above this line, and this locking mechanism
+; Note that there is NOTHING specific to ccs above this line, and this locking mechanism
 ; can be used for ANY transactions.
 ;
 ; I_0, ..., I_n must yield ((ASSERT_MY_COIN_ID I_k) (CREATE_COIN L_puzzle_for_coin_list 0) (ASSERT_CONSUMED L_k))
@@ -23,19 +23,33 @@
 ;
 ; I_0 is special. It still yields
 ;   ((ASSERT_MY_COIN_ID I_0) (CREATE_COIN L_puzzle_for_coin_list 0) (ASSERT_CONSUMED L_0)).
-; But it includes additional logic for coloured coins.
+; But it includes additional logic for ccs.
 ; It should yield (CREATE_COIN payment_hash_n amount_n) for n in outputs
-; It must be provided proof that all inputs are cc
+; It must be provided proof that all inputs are cc (and descend from ccs)
 ; It must be provided proof that all outputs are cc
 ; It will ensure input amounts equal output amounts.
 
+;; GLOSSARY:
+;;  mod-code: this code
+;;  genesis-coin-id: the genesis coin id (a sha256 hash)
+;;  inner-puzzle: the puzzle protecting the coins
+;; ---- items above are curried into the puzzle hash ----
+;;  input-coins: the list of ccs consumed by this spend, required so the auditor can ensure ccs are not created or destroyed
+;;  inner-puzzle-solution: the solution to the inner puzzle
+;;  my-input-index: index into input-coins corresponding to this coin
+;; ----- items below are only for the auditor coin
+;;  parent-proofs: a list of proofs that the input coins have cc parents
+;;     A parent proof is (PARENT_ID INNER_PUZZLE_HASH AMOUNT). The inner puzzle hash corresponds to the parent inner puzzle
+;;  input-proofs: a list of inner puzzle hashes that prove that the input coins are ccs
+;;  output-proofs: a list of inner puzzle hashes that prove that the output coins are ccs
 
 (mod (mod-code             ;; the code to this module, to be used with `curry`
       genesis-coin-id
       inner-puzzle          ;; or () if this is a lock
-      list-of-input-coins
+      input-coins
       inner-puzzle-solution
       my-input-index
+      parent-proofs
       input-proofs
       output-proofs
      )
@@ -52,41 +66,39 @@
          )
      )
 
-     (defun-inline is-condition-create-coin (condition)
+     (defun-inline not (BOOL)
+       (i BOOL 0 1)
+     )
+
+     (defun is-condition-create-coin (condition)
+       ;; returns 1 iff the given condition is a CREATE_COIN condition
        (= (f condition) CREATE_COIN)
      )
 
-     (defun has-no-additional-creations (output-conditions)
-       (if output-conditions
-         (if (is-condition-create-coin (f output-conditions))
+     (defun has-no-additional-creations (conditions)
+       ;; returns 1 iff there are no further CREATE_COIN conditions in `conditions`
+       (if conditions
+         (if (is-condition-create-coin (f conditions))
            0
-           (has-no-additional-creations (r output-conditions))
+           (has-no-additional-creations (r conditions))
          )
          1
        )
      )
 
-     (defun are-coin-creations-valid
+     (defun are-auditor-coin-creations-valid
+       ;; iterator over `conditions` to ensure that all CREATE_COIN conditions are valid
+       ;; ie. they either are creating the lock coin or paying to a cc
         (
           mod-code-hash
           genesis-coin-id
-          output-conditions
+          conditions
           lock-puzzle-hash
           output-proofs
         )
-
+        ;; TODO: write this
         1
       )
-
-     (defun strip-lock-coin-creation (create-coin-conditions lock-puzzle-hash)
-       (if create-coin-conditions
-        (if (= lock-puzzle-hash (f (r (f create-coin-conditions))))
-          (c (f create-coin-conditions) (strip-lock-coin-creation (r create-coin-conditions)))
-          (strip-lock-coin-creation (r create-coin-conditions) lock-puzzle-hash)
-        )
-        0
-       )
-     )
 
      (defun item-at-index (items index)
        ;; array indexing
@@ -97,64 +109,122 @@
        )
      )
 
-     (defun is-lock-creation (create-coin-condition lock-puzzle-hash)
+     (defun is-lock-creation (condition lock-puzzle-hash)
+       ;; return 1 iff condition is the lock creation
        (and
-         (= (f create-coin-condition) CREATE_COIN)
-         (= (f (r create-coin-condition)) lock-puzzle-hash)
-         (= (f (r (r create-coin-condition))) 0)
+         (= (f condition) CREATE_COIN)
+         (= (f (r condition)) lock-puzzle-hash)
+         (= (f (r (r condition))) 0)
        )
      )
 
-     (defun has-create-lock-coin (output-conditions lock-puzzle-hash)
-       (if output-conditions
-         (if (is-lock-creation (f output-conditions) lock-puzzle-hash)
+     (defun has-create-lock-coin (conditions lock-puzzle-hash)
+       ;; check if the lock coin is created via CREATE_COIN
+       (if conditions
+         (if (is-lock-creation (f conditions) lock-puzzle-hash)
            1
-           (has-create-lock-coin (r output-conditions) lock-puzzle-hash)
+           (has-create-lock-coin (r conditions) lock-puzzle-hash)
          )
          0
        )
      )
 
-     (defun has-assert-my-coin-id (output-conditions my-coin-id)
-       (if output-conditions
-         (if (= (f (f output-conditions)) ASSERT_MY_COIN_ID)
-           (= (f (r (f output-conditions))) my-coin-id)
-           (has-assert-my-coin-id (r output-conditions) my-coin-id)
+     (defun has-assert-my-coin-id (conditions my-coin-id)
+       ;; check that (ASSERT_MY_COIN_ID my-coin-id) is included in `conditions`
+       (if conditions
+         (if (= (f (f conditions)) ASSERT_MY_COIN_ID)
+           (= (f (r (f conditions))) my-coin-id)
+           (has-assert-my-coin-id (r conditions) my-coin-id)
          )
          0
        )
+     )
+
+     (defun is-in-list (atom items)
+       (if items
+         (if (= atom (f items))
+           1
+           (is-in-list atom (r items))
+         )
+         0
+       )
+     )
+
+     ;; hash a tree with an escape value representing an already-hashed subtree
+     ;; This optimization can be useful if you know the puzzle hash of a sub-expression.
+     ;; You probably actually want to use `curry_sha` though.
+     (defun sha256tree_esc_list
+            (TREE LITERALS)
+            (if (l TREE)
+                (sha256 2 (sha256tree_esc_list (f TREE) LITERALS) (sha256tree_esc_list (r TREE) LITERALS))
+                (if (is-in-list TREE LITERALS)
+                    TREE
+                    (sha256 1 TREE)
+                )
+            )
      )
 
      (defun coin-id (coin)
+       ;; return the coin id for the coin
        (sha256 (f coin) (f (r coin)) (f (r (r coin))))
      )
 
-     (defun cc-puzzle-hash (mod-code-hash genesis-coin-id inner-puzzle)
-       (sha256tree_esc (curry mod-code-hash mod-code-hash genesis-coin-id inner-puzzle) mod-code-hash)
+     (defun cc-puzzle-hash (mod-code-hash genesis-coin-id inner-puzzle-hash)
+       ;; return the puzzle hash for a cc with the given `genesis-coin-id` & `inner-puzzle`
+       (sha256tree_esc_list (curry mod-code-hash mod-code-hash genesis-coin-id inner-puzzle-hash)
+                            (list mod-code-hash inner-puzzle-hash))
      )
 
-     (defun check-for-cc-parent (mod-code-hash genesis-coin-id inner-puzzle input-coin)
+     (defun check-for-cc-parent (mod-code-hash genesis-coin-id inner-puzzle-hash parent-coin input-coin)
        ;; check that the puzzle is of the correct form (for the given inner puzzle)
        ;; or that the parent is the genesis coin
        (or
-         (= (cc-puzzle-hash mod-code-hash genesis-coin-id inner-puzzle) (f (r input-coin)))
          (= genesis-coin-id (f input-coin))
+         (and
+
+            ; check that the input coin is a cc
+            (= (cc-puzzle-hash mod-code-hash genesis-coin-id inner-puzzle-hash) (f (r input-coin)))
+
+            ; check that the parent coin really is the parent
+            (= (sha256
+                  (f parent-coin)
+                  (cc-puzzle-hash mod-code-hash genesis-coin-id (f (r parent-coin)))
+                  (f (r (r parent-coin)))
+                )
+                (f input-coin)
+            )
+
+         )
        )
      )
 
-     (defun inputs-are-ccs (mod-code-hash genesis-coin-id list-of-input-coins input-proofs)
-       (if list-of-input-coins
-         (and (check-for-cc-parent mod-code-hash genesis-coin-id (f input-proofs) (f list-of-input-coins))
-           (inputs-are-ccs mod-code-hash genesis-coin-id (r list-of-input-coins) (r input-proofs)))
+     (defun inputs-are-ccs (mod-code-hash genesis-coin-id input-coins parent-proofs input-proofs)
+       (if input-coins
+         (and
+           (check-for-cc-parent mod-code-hash genesis-coin-id (f input-proofs) (f parent-proofs) (f input-coins))
+           (inputs-are-ccs mod-code-hash genesis-coin-id (r input-coins) (r parent-proofs) (r input-proofs)))
          1
        )
      )
 
-     (defun create-coin-only-locks (output-conditions lock-puzzle-hash)
-       1
+     (defun create-coin-only-locks (conditions lock-puzzle-hash)
+       (if conditions
+         (if (or
+                (not (is-condition-create-coin (f conditions)))
+                (is-lock-creation (f conditions) lock-puzzle-hash)
+             )
+             (create-coin-only-locks (r conditions) lock-puzzle-hash)
+             0
+         )
+         1
+       )
      )
 
-     (defun val-for-input (input)
+     ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+     ;; ensure the input totals equal the output totals
+
+     (defun-inline val-for-input (input)
        (f (r (r input)))
      )
 
@@ -165,7 +235,7 @@
        )
      )
 
-     (defun val-for-condition (condition)
+     (defun-inline val-for-condition (condition)
        (if (= (f condition) CREATE_COIN)
          (f (r (r condition)))
          0
@@ -179,50 +249,56 @@
        )
      )
 
-     (defun inputs-balance-outputs (list-of-input-coins output-conditions)
-       (= (input-totals list-of-input-coins) (output-totals output-conditions))
+     (defun-inline inputs-balance-outputs (input-coins conditions)
+       (= (input-totals input-coins) (output-totals conditions))
      )
+
+     ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
      (defun main (
         mod-code-hash
         genesis-coin-id
         inner-puzzle
-        output-conditions
-        list-of-input-coins
+        conditions
+        input-coins
         lock-puzzle-hash
+        my-coin
         my-input-index
+        parent-proofs
         input-proofs
         output-proofs
       )
       (assert
-        ;; ensure ASSERT_MY_COIN_ID is in there
-        (has-assert-my-coin-id output-conditions (coin-id (item-at-index list-of-input-coins my-input-index)))
+        ;; ensure (ASSERT_MY_COIN_ID my-coin-id) is in there
+        (has-assert-my-coin-id conditions (coin-id my-coin))
 
         ;; ensure (CREATE_COIN lock_hash 0) is in there
-        (has-create-lock-coin output-conditions lock-puzzle-hash)
+        (has-create-lock-coin conditions lock-puzzle-hash)
 
         ;; if we are the auditor, ensure that the newly created cc outputs equal inputs
         (if my-input-index
           ;; if we are not the auditor, ensure there is no coin creation beyond the lock
-          (create-coin-only-locks output-conditions lock-puzzle-hash)
+          (create-coin-only-locks conditions lock-puzzle-hash)
 
           ;; we are the auditor
           (and
             ;; ensure coin creations are ccs (or lock coins)
-            (are-coin-creations-valid
+            (are-auditor-coin-creations-valid
                        mod-code-hash
                        genesis-coin-id
-                       output-conditions
+                       conditions
                        lock-puzzle-hash
                        output-proofs)
+
             ;; ensure the inputs are ccs
-            (inputs-are-ccs mod-code-hash genesis-coin-id list-of-input-coins input-proofs)
+            (inputs-are-ccs mod-code-hash genesis-coin-id input-coins parent-proofs input-proofs)
+
             ;; ensure the inputs and outputs balance
-            (inputs-balance-outputs list-of-input-coins output-conditions)
+            (inputs-balance-outputs input-coins conditions)
           )
         )
 
-        output-conditions
+        conditions
       )
     )
 
@@ -231,9 +307,11 @@
         genesis-coin-id
         inner-puzzle
         ((c inner-puzzle inner-puzzle-solution))
-        list-of-input-coins
+        input-coins
         "LOCK_VALUE" ;; lock-puzzle-hash
+        (item-at-index input-coins my-input-index)
         my-input-index
+        parent-proofs
         input-proofs
         output-proofs
     )
