@@ -70,7 +70,7 @@
        (i BOOL 0 1)
      )
 
-     (defun is-condition-create-coin (condition)
+     (defun-inline is-condition-create-coin (condition)
        ;; returns 1 iff the given condition is a CREATE_COIN condition
        (= (f condition) CREATE_COIN)
      )
@@ -86,7 +86,7 @@
        )
      )
 
-     (defun is-coin-creation-valid (condition mod-hash genesis-coin-id lock-puzzle-hash output-proof)
+     (defun-inline is-coin-creation-valid (condition mod-hash genesis-coin-id lock-puzzle-hash output-proof)
        (or
          (is-lock-creation condition lock-puzzle-hash)
          (= (cc-puzzle-hash mod-hash genesis-coin-id output-proof) (f (r condition)))
@@ -164,7 +164,7 @@
        )
      )
 
-     (defun coin-id (coin)
+     (defun-inline coin-id (coin)
        ;; return the coin id for the coin
        (sha256 (f coin) (f (r coin)) (f (r (r coin))))
      )
