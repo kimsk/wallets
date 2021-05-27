@@ -23,7 +23,7 @@ def view_funds(wallet):
 
 def print_my_details(wallet):
     print(f"{informative} Name: {wallet.name}")
-    print(f"{informative} Pubkey: {hexlify(wallet.get_next_public_key().serialize()).decode('ascii')}")
+    print(f"{informative} Pubkey: {hexlify(wallet.get_next_public_key()).decode('ascii')}")
     print(f"{informative} Puzzlehash: {wallet.get_new_puzzlehash()}")
 
 
@@ -93,7 +93,7 @@ async def initiate_ap(wallet, ledger_api):
         return None
     # TODO: add a strict format checker to input here (and everywhere tbh)
     # Actual puzzle lockup/spend
-    a_pubkey = wallet.get_next_public_key().serialize()
+    a_pubkey = wallet.get_next_public_key()
     b_pubkey = input("Enter recipient's pubkey: 0x")
     amount = -1
     while amount > wallet.temp_balance or amount < 0:
